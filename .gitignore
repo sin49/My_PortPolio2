@@ -1,3 +1,24 @@
+# Build output (CMake)
+build/
+out/
+cmake-build-*/
+CMakeUserPresets.json
+
+# IDE
+.vs/
+.vscode/
+.idea/
+*.user
+*.suo
+*.vcxproj.user
+
+# MSVC by-products
+*.pdb
+*.ilk
+*.exp
+*.idb
+*.tlog
+
 # Prerequisites
 *.d
 

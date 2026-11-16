@@ -42,14 +42,50 @@
 - 소유: 값 또는 `std::unique_ptr`. `new`/`delete` 직접 사용 금지. 빌려 쓸 땐 참조 또는 원시 포인터(소유 안 함).
 - 엔티티를 오래 들고 있을 땐 포인터 말고 **ID/핸들**로 참조. (`std::vector` 재할당 시 포인터가 깨짐)
 - **순회 중 컨테이너에서 삭제 금지.** 삭제는 예약 후 `World::FlushRemovals()`에서 일괄 처리.
-- 멤버 변수는 **선언과 동시에 초기화** (`float hp = 100.f;`).
+- 멤버 변수는 **선언과 동시에 초기화** (`float m_fHp = 100.f;`).
 - 종류 구분은 `enum class`. 문자열·숫자 리터럴로 타입 판별 금지.
 - 다형성 기반 클래스엔 `virtual ~Base() = default;`, 파생은 `override` 명시.
 - 코루틴 대신 **타이머 + 상태 enum**.
 - 쓰지 않는 것: 템플릿 메타프로그래밍, 매크로 로직, 예외 기반 흐름 제어, 복잡한 상속 계층(2단계 초과).
+  - 예외: **복구하지 않는 치명적 오류**에는 `throw` 허용 (예: World 용량 초과). `catch`해서 흐름을 이어가는 용도로는 쓰지 않음.
 
-## 명명
-- 타입·함수: `PascalCase` / 변수·파라미터: `camelCase` / 상수: `kPascalCase` / 파일: 타입명과 동일.
+## 명명 (11/17 사용자 결정, 세부 규칙은 AI가 정함)
+> **명명 처리는 AI 담당.** 사용자는 규칙을 신경 쓰지 않고 작성해도 됨. AI가 프로젝트 점검(리뷰) 때 변수명·파일명·작성자 주석을 맞춤.
+
+- 타입·함수: `PascalCase` / 상수(`constexpr`, `const` 전역): `kPascalCase` / enum 값: `PascalCase`
+- **변수: 헝가리안 표기** = 타입 접두사 + 이름(첫 글자 대문자). 지역 변수·파라미터·필드 모두 적용.
+  | 타입 | 접두사 | 예 |
+  |---|---|---|
+  | `bool` | `b` | `bGrounded` |
+  | `int` | `i` | `iFacing` |
+  | `long long` | `ll` | `llTotalTicks` |
+  | 부호 없는 정수 (`std::uint32_t`, `size_t`) | `u` | `uIndex` |
+  | `float` / `double` | `f` / `d` | `fGravity` |
+  | `char` | `c` | `cTile` |
+  | `Vec2` | `v` | `vPos` |
+  | `Rect` | `rc` | `rcHitbox` |
+  | `Handle` | `h` | `hPlayer` |
+  | `enum class` 값 | `e` | `ePhase` |
+  | 그 밖의 구조체·클래스 (참조 포함) | `t` | `tBody`, `tWorld` |
+  | 원시 포인터 | `p` (가리키는 타입 접두사는 안 붙임) | `pEntity` |
+  | `std::vector` / `std::array` / `std::span` | `vec` / `arr` / `sp` | `vecHandles` |
+  | `std::string` / `std::string_view` | `str` / `sv` | `svRow` |
+  | `std::optional` / `std::unique_ptr` | `opt` / `up` | `optRoom` |
+  | 람다·함수 객체 | `fn` | `fnVisit` |
+- 범위 접두사: **클래스**(private 상태를 가진 것) 멤버 = `m_` + 타입 접두사 (`m_fAccumulator`) / 정적 멤버 = `s_`.
+  **데이터 구조체**(public 필드, 지정 초기화로 만드는 것) 필드는 `m_` 없이 타입 접두사만 (`tBody.vPos.fX`).
+- 예외: 짧은 루프 인덱스 `i`, `j`는 그대로 허용.
+- **파일명 = 타입명 + 작성자 접미사** (포폴에서 AI/사용자 작성 범위를 보여주기 위함)
+  - AI만 작성한 파일: `Name_C.h` / `Name_C.cpp`
+  - 사용자만 작성한 파일: `Name_U.h` / `Name_U.cpp`
+  - 둘이 섞인 파일: 접미사 없이 `Name.h` / `Name.cpp`. 대신 파일 안에서 구역마다 작성자 주석
+    ```cpp
+    // work: claude
+    ...AI가 쓴 부분...
+    // work: user
+    ...사용자가 쓴 부분...
+    ```
+  - 작성자 구분은 `docs/code-guide.md`의 파일 표에도 기록.
 - 조회 함수(`Get~`, `Is~`)는 상태를 바꾸지 않음.
 
 ## 폴더
