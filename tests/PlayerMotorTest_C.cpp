@@ -72,8 +72,11 @@ constexpr MoveIntent kTap = {.bJumpPressed = true, .bJumpHeld = false};
 constexpr MoveIntent kWalkRight = {.iMoveDir = 1};
 constexpr MoveIntent kWalkRightPress = {.iMoveDir = 1, .bJumpPressed = true, .bJumpHeld = true};
 constexpr MoveIntent kWalkLeft = {.iMoveDir = -1};
-constexpr MoveIntent kDashRight = {.iMoveDir = 1, .bDashHeld = true};
-constexpr MoveIntent kDashOnly = {.bDashHeld = true};
+constexpr MoveIntent kWalkRightHold = {.iMoveDir = 1, .bJumpHeld = true};
+constexpr MoveIntent kRunRight = {.iMoveDir = 1, .bDashHeld = true};
+constexpr MoveIntent kRunOnly = {.bDashHeld = true};
+constexpr MoveIntent kRunRightJumpPress = {.iMoveDir = 1, .bJumpPressed = true, .bJumpHeld = true, .bDashHeld = true};
+constexpr MoveIntent kRunRightJumpHold = {.iMoveDir = 1, .bJumpHeld = true, .bDashHeld = true};
 
 Sim MakeSim(std::span<const std::string_view> spRows, Vec2 vPos)
 {
@@ -234,83 +237,220 @@ TEST_CASE("PlayerMotor: 관성 - 키를 떼면 살짝 미끄러지다 멈춤")
     CHECK(fSlide < kTileSize);  // 한 칸 넘게 미끄러지진 않음
 }
 
-TEST_CASE("PlayerMotor: 대시 - 누르는 동안 최고 속도가 배율만큼 빨라짐")
+// ---------- Shift: 짧게 눌렀다 떼면 대시 / 길게 누르면 달리기 ----------
+namespace
+{
+// fDashTapTime(0.18초)을 넘기는 틱 수
+const int kLongHoldTicks = static_cast<int>(kPlayerDef.fDashTapTime / kDt) + 2;
+
+// 짧게 탭: 2틱 누르고 떼기. 대시는 뗀 틱에 나감
+void TapDash(Sim& tSim, int iDir)
+{
+    tSim.Tick({.iMoveDir = iDir, .bDashPressed = true, .bDashHeld = true});
+    tSim.Tick({.iMoveDir = iDir, .bDashHeld = true});
+    tSim.Tick({.iMoveDir = iDir});
+}
+
+void HoldRun(Sim& tSim, int iTicks)
+{
+    for (int i = 0; i < iTicks; ++i)
+        tSim.Tick(kRunRight);
+}
+} // namespace
+
+TEST_CASE("PlayerMotor: 달리기 - 길게 누르면 최고 속도가 배율만큼 빨라짐")
 {
     Sim tSim = MakeStanding();
-    for (int i = 0; i < 40; ++i)
-        tSim.Tick(kDashRight);
-
-    CHECK(tSim.tState.tDash.bActive);
+    HoldRun(tSim, 40);
+    CHECK(tSim.tState.tDash.bRunning);
     CHECK(tSim.tState.tDash.fGauge < 1.0f);
-    CHECK(tSim.tBody.vVel.fX == doctest::Approx(kPlayerDef.fMoveSpeed * kPlayerDef.fDashSpeedMultiplier));
+    CHECK(tSim.tBody.vVel.fX == doctest::Approx(kPlayerDef.fMoveSpeed * kPlayerDef.fRunSpeedMultiplier));
 }
 
-TEST_CASE("PlayerMotor: 대시 - 걷기보다 최고 속도에 더 빨리 도달")
+TEST_CASE("PlayerMotor: 달리기 - 탭 판정 시간 안에는 아직 걷기 (게이지 안 씀)")
 {
-    auto fnTicksToTopSpeed = [](const MoveIntent& tIntent, float fTopSpeed) {
-        Sim tSim = MakeStanding();
-        tSim.Tick(kIdle);
-        int iTicks = 0;
-        while (tSim.tBody.vVel.fX < fTopSpeed - 0.01f && iTicks < 120)
-        {
-            tSim.Tick(tIntent);
-            ++iTicks;
-        }
-        return iTicks;
-    };
-
-    const int iWalkTicks = fnTicksToTopSpeed(kWalkRight, kPlayerDef.fMoveSpeed);
-    const int iDashTicks =
-        fnTicksToTopSpeed(kDashRight, kPlayerDef.fMoveSpeed * kPlayerDef.fDashSpeedMultiplier);
-
-    CHECK(iWalkTicks >= 8);  // 0.15초 ≈ 9틱: 바로 최고 속도 아님
-    CHECK(iWalkTicks <= 10);
-    CHECK(iDashTicks < iWalkTicks);
+    Sim tSim = MakeStanding();
+    HoldRun(tSim, kLongHoldTicks - 4);
+    CHECK_FALSE(tSim.tState.tDash.bRunning);
+    CHECK(tSim.tState.tDash.fGauge == 1.0f);
+    HoldRun(tSim, 4);
+    CHECK(tSim.tState.tDash.bRunning);
 }
 
-TEST_CASE("PlayerMotor: 대시 - 다 쓰면 탈진, 절반 회복 후 다시 가능")
+TEST_CASE("PlayerMotor: 달리기 - 길게 누르다 떼면 대시 안 나감")
+{
+    Sim tSim = MakeStanding();
+    HoldRun(tSim, kLongHoldTicks + 10);
+    tSim.Tick(kWalkRight);  // 뗌
+    CHECK_FALSE(tSim.tState.tDash.IsDashing());
+}
+
+TEST_CASE("PlayerMotor: 달리기 - 다 쓰면 탈진, 절반 회복 후 다시 가능")
 {
     Sim tSim = MakeStanding();
     int iTicks = 0;
-    while (!tSim.tState.tDash.bExhausted && iTicks < 200)  // 게이지 2초분 ≈ 120틱
+    while (!tSim.tState.tDash.bExhausted && iTicks < 500)  // 탭 판정 ~11틱 + 게이지 / 0.2 = 5초 ≈ 300틱
     {
-        tSim.Tick(kDashRight);
+        tSim.Tick(kRunRight);
         ++iTicks;
     }
     REQUIRE(tSim.tState.tDash.bExhausted);
-    CHECK(iTicks == doctest::Approx(120).epsilon(0.02));
+    CHECK(iTicks == doctest::Approx(300 + kLongHoldTicks).epsilon(0.03));
     CHECK(tSim.tState.tDash.fGauge == 0.0f);
 
-    tSim.Tick(kDashRight);  // 탈진 중에는 눌러도 대시 안 됨
-    CHECK_FALSE(tSim.tState.tDash.bActive);
+    tSim.Tick(kRunRight);  // 탈진 중에는 눌러도 달리기 안 됨 (회복은 됨)
+    CHECK_FALSE(tSim.tState.tDash.bRunning);
 
-    for (int i = 0; i < 60; ++i)  // 누적 약 1초 회복 -> 0.4 < 0.5 (누르고 있어도 회복은 됨)
-        tSim.Tick(kDashRight);
+    for (int i = 0; i < 20; ++i)  // 누적 약 0.35초 회복 -> 0.28 < 0.5
+        tSim.Tick(kRunRight);
     CHECK(tSim.tState.tDash.bExhausted);
 
-    for (int i = 0; i < 20; ++i)  // 누적 약 1.35초 -> 0.54 >= 0.5
+    for (int i = 0; i < 25; ++i)  // 누적 약 0.77초 -> 0.61 >= 0.5
         tSim.Tick(kIdle);
     CHECK_FALSE(tSim.tState.tDash.bExhausted);
 
-    tSim.Tick(kDashRight);
-    CHECK(tSim.tState.tDash.bActive);
+    HoldRun(tSim, kLongHoldTicks + 1);
+    CHECK(tSim.tState.tDash.bRunning);
 }
 
-TEST_CASE("PlayerMotor: 대시 - 이동 입력 없이 대시 키만 누르면 게이지 유지")
+TEST_CASE("PlayerMotor: 달리기 - 방향키 없이 Shift만 누르면 달리기 아님, 게이지 유지")
 {
     Sim tSim = MakeStanding();
     for (int i = 0; i < 30; ++i)
-        tSim.Tick(kDashOnly);
-    CHECK_FALSE(tSim.tState.tDash.bActive);
+        tSim.Tick(kRunOnly);
+    CHECK_FALSE(tSim.tState.tDash.bRunning);
     CHECK(tSim.tState.tDash.fGauge == 1.0f);
 }
 
-TEST_CASE("PlayerMotor: 대시 - 공중에서도 적용")
+TEST_CASE("PlayerMotor: 달리기 - 공중에서도 적용")
 {
     Sim tSim = MakeFalling();
-    tSim.Tick(kDashRight);
+    HoldRun(tSim, kLongHoldTicks);
     CHECK_FALSE(tSim.tBody.bGrounded);
-    CHECK(tSim.tState.tDash.bActive);
+    CHECK(tSim.tState.tDash.bRunning);
+}
+
+TEST_CASE("PlayerMotor: 달리기 - 달리면서 점프하면 더 높이")
+{
+    const float fWalkHeight = MeasureJumpHeight(kWalkRightPress, kWalkRightHold);
+
+    Sim tSim = MakeStanding();
+    HoldRun(tSim, kLongHoldTicks + 2);
+    REQUIRE(tSim.tState.tDash.bRunning);
+    const float fStartY = tSim.tBody.vPos.fY;
+    float fMinY = fStartY;
+    tSim.Tick(kRunRightJumpPress);
+    for (int i = 0; i < 90; ++i)
+    {
+        fMinY = std::min(fMinY, tSim.tBody.vPos.fY);
+        tSim.Tick(kRunRightJumpHold);
+    }
+    CHECK(fStartY - fMinY > fWalkHeight * 1.2f);  // 속도 1.15배 -> 높이 약 1.32배
+}
+
+TEST_CASE("PlayerMotor: 대시 - 짧게 눌렀다 떼면 빠르게 전진, 게이지 절반, 무적")
+{
+    Sim tSim = MakeStanding();
+    tSim.Tick(kIdle);
+    const float fStartX = tSim.tBody.vPos.fX;
+
+    tSim.Tick({.iMoveDir = 1, .bDashPressed = true, .bDashHeld = true});
+    CHECK_FALSE(tSim.tState.tDash.IsDashing());  // 누르는 중엔 아직 (떼야 나감)
+    tSim.Tick({.iMoveDir = 1});                  // 뗌
+    CHECK(tSim.tState.tDash.IsDashing());
+    CHECK(tSim.tBody.vVel.fX == doctest::Approx(kPlayerDef.fDashSpeed));
+    CHECK(tSim.tState.tDash.fGauge == doctest::Approx(1.0f - kPlayerDef.fDashCost));
+    CHECK(tSim.tState.tDash.fInvulnTimer > 0.0f);
+
+    const float fDashStartX = tSim.tBody.vPos.fX - kPlayerDef.fDashSpeed * kDt;
+    for (int i = 0; i < 30 && tSim.tState.tDash.IsDashing(); ++i)
+        tSim.Tick(kIdle);
+    CHECK_FALSE(tSim.tState.tDash.IsDashing());
+    CHECK(tSim.tState.tDash.fInvulnTimer == 0.0f);
+
+    const float fDistance = tSim.tBody.vPos.fX - fDashStartX;  // 이론 900 * 0.14 = 126 (+ 끝난 뒤 미끄러짐)
+    CHECK(fDistance > 110.0f);
+    CHECK(fDistance < 170.0f);
+    CHECK(fStartX < fDashStartX);
+}
+
+TEST_CASE("PlayerMotor: 대시 - 두 고정 틱 사이에 눌렀다 뗀 아주 짧은 탭도 대시")
+{
+    Sim tSim = MakeStanding();
+    tSim.Tick({.iMoveDir = 1, .bDashPressed = true, .bDashHeld = false});
+    CHECK(tSim.tState.tDash.IsDashing());
+}
+
+TEST_CASE("PlayerMotor: 대시 - 방향키 없으면 마지막으로 누른 방향으로")
+{
+    Sim tSim = MakeStanding();
+    tSim.Tick(kWalkLeft);
+    tSim.Tick(kIdle);
+    TapDash(tSim, 0);
+    CHECK(tSim.tState.tDash.iDashDir == -1);
+    CHECK(tSim.tBody.vVel.fX < 0.0f);
+}
+
+TEST_CASE("PlayerMotor: 대시 - 위아래로는 안 움직임 (공중에서도 높이 유지)")
+{
+    Sim tSim = MakeFalling();
+    tSim.Tick(kIdle);
+    TapDash(tSim, 1);
+    REQUIRE(tSim.tState.tDash.IsDashing());
+    const float fY = tSim.tBody.vPos.fY;
+    for (int i = 0; i < 5; ++i)
+        tSim.Tick(kIdle);
+    REQUIRE(tSim.tState.tDash.IsDashing());
+    CHECK(tSim.tBody.vPos.fY == doctest::Approx(fY));
+    CHECK(tSim.tBody.vVel.fY == 0.0f);
+}
+
+TEST_CASE("PlayerMotor: 대시 - 점프해서 올라가는 중에도 나감 (Z 누른 채)")
+{
+    Sim tSim = MakeStanding();
+    tSim.Tick(kIdle);
+    tSim.Tick({.iMoveDir = 1, .bJumpPressed = true, .bJumpHeld = true});
+    for (int i = 0; i < 5; ++i)
+        tSim.Tick({.iMoveDir = 1, .bJumpHeld = true});
+    REQUIRE_FALSE(tSim.tBody.bGrounded);
+
+    tSim.Tick({.iMoveDir = 1, .bJumpHeld = true, .bDashPressed = true, .bDashHeld = true});
+    tSim.Tick({.iMoveDir = 1, .bJumpHeld = true});
+    CHECK(tSim.tState.tDash.IsDashing());
+    CHECK(tSim.tBody.vVel.fX == doctest::Approx(kPlayerDef.fDashSpeed));
+}
+
+TEST_CASE("PlayerMotor: 대시 - 달리다가 점프한 공중에서 다시 탭하면 나감")
+{
+    Sim tSim = MakeStanding();
+    HoldRun(tSim, kLongHoldTicks + 5);
+    tSim.Tick({.iMoveDir = 1, .bJumpPressed = true, .bJumpHeld = true, .bDashHeld = true});
+    for (int i = 0; i < 4; ++i)
+        tSim.Tick({.iMoveDir = 1, .bJumpHeld = true, .bDashHeld = true});
+    tSim.Tick({.iMoveDir = 1, .bJumpHeld = true});  // Shift 뗌 (길게 눌렀으니 대시 X)
+    REQUIRE_FALSE(tSim.tState.tDash.IsDashing());
+    REQUIRE_FALSE(tSim.tBody.bGrounded);
+
+    tSim.Tick({.iMoveDir = 1, .bJumpHeld = true, .bDashPressed = true, .bDashHeld = true});
+    tSim.Tick({.iMoveDir = 1, .bJumpHeld = true});
+    CHECK(tSim.tState.tDash.IsDashing());
+}
+
+TEST_CASE("PlayerMotor: 대시 - 게이지가 절반 미만이면 안 나감")
+{
+    Sim tSim = MakeStanding();
+    tSim.tState.tDash.fGauge = kPlayerDef.fDashCost - 0.05f;
+    TapDash(tSim, 1);
+    CHECK_FALSE(tSim.tState.tDash.IsDashing());
+}
+
+
+TEST_CASE("PlayerMotor: 장거리는 달리기가 대시보다 멀리 (같은 게이지 0.5)")
+{
+    const float fDashDistance = kPlayerDef.fDashSpeed * kPlayerDef.fDashTime;
+    const float fRunDistance =
+        kPlayerDef.fMoveSpeed * kPlayerDef.fRunSpeedMultiplier * (kPlayerDef.fDashCost / kPlayerDef.fRunDrainPerSec);
+    CHECK(fRunDistance > fDashDistance);
 }
 
 TEST_CASE("PlayerMotor: facing - 마지막 이동 방향 유지")

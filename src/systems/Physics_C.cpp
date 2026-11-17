@@ -100,7 +100,8 @@ void ResolveY(Body& tBody, const Tilemap& tMap)
 
 void Physics::Update(Body& tBody, const Tilemap& tMap, float fDt) const
 {
-    tBody.vVel.fY = std::min(tBody.vVel.fY + kPhysicsDef.fGravity * fDt, kPhysicsDef.fMaxFallSpeed);
+    if (!tBody.bNoGravity)
+        tBody.vVel.fY = std::min(tBody.vVel.fY + kPhysicsDef.fGravity * fDt, kPhysicsDef.fMaxFallSpeed);
 
     // 축 분리: X 먼저 이동·해결, 그다음 Y (모서리 끼임 방지)
     tBody.vPos.fX += tBody.vVel.fX * fDt;

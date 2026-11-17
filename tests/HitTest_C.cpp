@@ -39,7 +39,8 @@ struct Arena
     void Tick(const AttackIntent& tIntent)
     {
         Entity* pPlayer = tWorld.Get(hPlayer);
-        tCombat.UpdatePlayerAttack(tIntent, pPlayer->tBody, pPlayer->tMotor.iFacing, pPlayer->tAttack, kDt);
+        tCombat.UpdateAttack(tIntent, pPlayer->tBody, pPlayer->tMotor.iFacing, kPlayerDef.tAttack, pPlayer->tAttack,
+                             kDt);
         tSpatial.Rebuild();
         vecReports.clear();
         tCombat.ResolveHits(tWorld, tSpatial, vecReports, kDt);
@@ -135,7 +136,7 @@ TEST_CASE("Hit: 적끼리는 안 때림, 겹치지 않으면 안 맞음")
     const Handle hFarPlayer = tWorld.Create(MakeEntity(EntityType::Player, {600.0f, 200.0f}, kPlayerDef.vSize, 100.0f));
 
     Entity* pAttacker = tWorld.Get(hAttacker);
-    tCombat.UpdatePlayerAttack(kPress, pAttacker->tBody, 1, pAttacker->tAttack, kDt);
+    tCombat.UpdateAttack(kPress, pAttacker->tBody, 1, kChaserDef.tAttack, pAttacker->tAttack, kDt);
     tCombat.ResolveHits(tWorld, tSpatial, vecReports, kDt);
 
     CHECK(tWorld.Get(hOther)->fHp == doctest::Approx(30.0f));

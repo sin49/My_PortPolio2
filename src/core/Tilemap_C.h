@@ -15,12 +15,23 @@ enum class TileType : unsigned char
     Solid,
 };
 
+// 타일 단위 사각형 (방 데이터용)
+struct TileRect
+{
+    int iX = 0;
+    int iY = 0;
+    int iW = 1;
+    int iH = 1;
+};
+
 // 방 하나의 타일 격자. 문자 '#' = Solid, '.' = Empty.
 class Tilemap
 {
 public:
     // 행 문자열 배열로 생성. 행 길이가 다르거나 모르는 문자가 있으면 nullopt.
     static std::optional<Tilemap> FromRows(std::span<const std::string_view> spRowTexts);
+    // 크기 + 벽 사각형 목록으로 생성 (넓은 방을 짧게 적으려고). 바깥 테두리는 자동으로 벽.
+    static Tilemap FromSolids(int iCols, int iRows, std::span<const TileRect> spSolids);
 
     int GetCols() const { return m_iCols; }
     int GetRows() const { return m_iRows; }

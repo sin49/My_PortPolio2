@@ -20,7 +20,10 @@ struct Sim
     AttackState tAttack;
     int iFacing = 1;
 
-    void Tick(const AttackIntent& tIntent) { tCombat.UpdatePlayerAttack(tIntent, kBody, iFacing, tAttack, kDt); }
+    void Tick(const AttackIntent& tIntent)
+    {
+        tCombat.UpdateAttack(tIntent, kBody, iFacing, kPlayerDef.tAttack, tAttack, kDt);
+    }
 
     // 지정한 단계가 끝날 때까지 진행, 걸린 틱 수 반환
     int RunWhile(AttackPhase ePhase)
@@ -60,7 +63,7 @@ TEST_CASE("Combat: 히트박스는 바라보는 쪽에 붙음")
     Sim tRight;
     tRight.Tick(kPress);
     CHECK(tRight.tAttack.rcHitbox.fX == doctest::Approx(kBody.vPos.fX + kBody.vSize.fX));
-    CHECK(tRight.tAttack.rcHitbox.fW == doctest::Approx(kPlayerDef.vAttackSize.fX));
+    CHECK(tRight.tAttack.rcHitbox.fW == doctest::Approx(kPlayerDef.tAttack.vSize.fX));
 
     Sim tLeft;
     tLeft.iFacing = -1;

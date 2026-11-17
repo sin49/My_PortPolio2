@@ -11,6 +11,7 @@ struct Body
     Vec2 vSize = {};
     Vec2 vVel = {};          // px/s
     bool bGrounded = false;  // 마지막 Physics 틱에서 바닥에 닿았는지
+    bool bNoGravity = false; // 이번 틱 중력 끔 (대시 중). Motor가 매 틱 다시 정함
 };
 
 inline Rect GetBounds(const Body& tBody)

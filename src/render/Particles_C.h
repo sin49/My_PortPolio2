@@ -1,5 +1,6 @@
 #pragma once
 
+#include "core/Rect_C.h"
 #include "core/Vec2_C.h"
 
 #include <array>
@@ -30,20 +31,34 @@ struct SparkShape
     float fSizeJitter = 0.0f;    // 크기 랜덤 폭 (0.4 = ±40%)
 };
 
+// 대시 잔상: 그 틱의 몸 사각형을 잠깐 남겨 두고 흐려짐
+struct Ghost
+{
+    Rect rcBody = {};
+    float fLife = 0.0f;  // <= 0 이면 빈 칸
+};
+
 class Particles
 {
 public:
     static constexpr int kCapacity = 256;  // 다 차면 새 파편은 무시
+    static constexpr int kGhostCapacity = 32;
+    static constexpr float kGhostLife = 0.16f;
 
-    // 맞은 지점에서 iDir 쪽(맞은 쪽 뒤)으로 하얀 파편. bKilled면 크게 한 번 더
-    void SpawnHitSparks(Vec2 vPos, int iDir, bool bKilled);
+    // 대시 중 매 틱 호출 -> 지나간 자리에 잔상
+    void SpawnGhost(const Rect& rcBody);
+    const std::array<Ghost, kGhostCapacity>& GetGhosts() const { return m_arrGhosts; }
+
+    // 맞은 지점에서 iDir 쪽(맞은 쪽 뒤)으로 하얀 파편. bKilled면 크게 한 번 더. fScale = 맞은 대상 크기
+    void SpawnHitSparks(Vec2 vPos, int iDir, bool bKilled, float fScale);
     void Update(float fDt);
 
     const std::array<Particle, kCapacity>& GetAll() const { return m_arrParticles; }
 
 private:
-    void Spawn(Vec2 vPos, int iDir, const SparkShape& tShape);
+    void Spawn(Vec2 vPos, int iDir, const SparkShape& tShape, float fScale);
 
     std::array<Particle, kCapacity> m_arrParticles = {};
+    std::array<Ghost, kGhostCapacity> m_arrGhosts = {};
     std::mt19937 m_tRng{20261118u};  // 고정 시드 -> 같은 입력이면 같은 모양 (전역 아님)
 };

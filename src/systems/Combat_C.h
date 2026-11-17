@@ -5,6 +5,7 @@
 #include "core/Handle_U.h"
 #include "core/Rect_C.h"
 #include "core/Vec2_C.h"
+#include "data/AttackDef_C.h"
 
 #include <array>
 #include <vector>
@@ -47,14 +48,16 @@ struct HitReport
     Vec2 vPos = {};  // 히트박스와 몸이 겹친 부분의 가운데
     int iDir = 1;    // 공격자 -> 맞은 쪽 방향 (-1 / +1)
     bool bKilled = false;  // 이 타격으로 HP 0이 됨
+    float fScale = 1.0f;   // 맞은 대상 크기 (작은 적 키 = 1.0). 연출이 파편 규모에 씀
 };
 
 class Combat
 {
 public:
-    // 공격 단계·히트박스 갱신. iFacing: PlayerMotorState::iFacing (-1 / +1). tBody는 Physics 이동이 끝난 위치.
-    void UpdatePlayerAttack(const AttackIntent& tIntent, const Body& tBody, int iFacing, AttackState& tAttack,
-                            float fDt) const;
+    // 공격 단계·히트박스 갱신 (플레이어·적 공용, 종류별 차이는 tDef). iFacing: PlayerMotorState::iFacing (-1 / +1).
+    // tBody는 Physics 이동이 끝난 위치.
+    void UpdateAttack(const AttackIntent& tIntent, const Body& tBody, int iFacing, const AttackDef& tDef,
+                      AttackState& tAttack, float fDt) const;
 
     // 모든 공격 단계 갱신 뒤 호출. Active 히트박스 겹침 -> HP 차감·넉백·깜빡임, HP 0인 적은 Destroy 예약.
     // 맞은 것마다 vecOutReports에 추가 (호출자가 비우고 넘김)

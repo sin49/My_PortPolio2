@@ -19,12 +19,19 @@ ctest --test-dir build -C Debug --output-on-failure                             
 | 키 | 동작 |
 |---|---|
 | ← → | 이동 (관성) |
-| Z | 점프 (길게 = 높이, 코요테·버퍼 있음) |
-| Shift | 대시 = 누르는 동안 빨리 달리기 (게이지 소모) |
+| Z | 점프 (길게 = 높이, 코요테·버퍼 있음, 달리면서 = 더 높이) |
+| Shift 짧게 눌렀다 떼기 | 대시: 짧고 빠른 수평 돌진 + 0.1초 무적, 게이지 50% (`fDashTapTime` 0.18초 안에 떼야 함) |
+| Shift 길게 누르고 있기 | 달리기 (방향키 있을 때만, 게이지 천천히 소모, 점프 더 높이) |
 | X | 근접 공격 (버퍼 있음) |
+| Enter | 시작 / 재시작 |
+| F1 | 디버그 수치 켜기·끄기 |
 | Esc | 종료 |
 
-화면 표시: 노란 사각형 = 플레이어(흰 테두리 = 땅에 서 있음, 하늘색 = 대시 중), 빨간 반투명 = 공격 히트박스, 왼쪽 위 = 디버그 수치.
+화면 표시: 노란 사각형 = 플레이어(흰 테두리 = 땅, 하늘색 = 달리기, 밝은 하늘색 = 대시, 반투명 = 무적), 빨간 반투명 = 공격 히트박스.
+적 = 붉은 사각형, 크기 = 맞아야 죽는 횟수(작음 1 / 중간 2 / 큼 3), 머리 위 점 = 남은 타격 수.
+왼쪽 위 = HP 바 + 대시 게이지(흰 눈금 = 대시 가능선 50%). 오른쪽 위 = 방 진행 점(마름모 = 보스) + 남은 적 칸.
+남은 적이 처음의 1/4 이하 = 화면 밖 적 방향 화살표. 문 = 빨강(잠김)/초록(열림, 화면 오른쪽 화살표).
+오른쪽 위 = 미니맵(그 아래 방 진행 점·남은 적 칸) (노란 점 = 나, 빨간 점 = 적, 흰 테두리 = 지금 화면). 플레이어 머리 위 = 대시 게이지(쓸 때만). 타이틀 = 조작법.
 붉은 사각형 = 적(허수아비, 머리 위 HP 바), 맞으면 흰색 깜빡임 + 하얀 파편.
 
 ## 3. 수치 조정 (코드 로직은 안 건드려도 됨)
@@ -32,8 +39,12 @@ ctest --test-dir build -C Debug --output-on-failure                             
 |---|---|---|
 | 걷기 속도 | `src/data/PlayerDef_C.h` | `fMoveSpeed` |
 | 출발할 때 붙는 시간 / 멈출 때 미끄러짐 | `src/data/PlayerDef_C.h` | `fGroundAccelTime`, `fGroundStopTime` (공중: `fAir~`) |
-| 대시 배율·출발 속도 | `src/data/PlayerDef_C.h` | `fDashSpeedMultiplier`, `fDashAccelTime` |
-| 대시 게이지 (지속·회복·탈진 해제) | `src/data/PlayerDef_C.h` | `fDashDrainPerSec`, `fDashRegenPerSec`, `fDashRecoverRatio` |
+| 달리기 배율·출발 속도·점프 배율 | `src/data/PlayerDef_C.h` | `fRunSpeedMultiplier`, `fDashAccelTime`, `fRunJumpMultiplier` |
+| 대시 속도·시간·비용·무적 | `src/data/PlayerDef_C.h` | `fDashSpeed`, `fDashTime`, `fDashCost`, `fDashInvulnTime` |
+| 게이지 (달리기 소모·회복·탈진 해제) | `src/data/PlayerDef_C.h` | `fRunDrainPerSec`, `fDashRegenPerSec`, `fDashRecoverRatio` |
+| 적 크기별 몸집·HP | `src/data/EnemyDef_C.h` | `kEnemySizes` |
+| 방 모양·적 배치(크기 포함)·튜토리얼 키 안내 | `src/data/Rooms_C.h` | `kRooms` (크기 + 벽 사각형 목록) |
+| 카메라 따라가는 속도 | `src/render/ViewCamera_C.h` | `kFollowSharpness` |
 | 점프 높이 / 짧게 누를 때 높이 | `src/data/PlayerDef_C.h` | `fJumpSpeed`, `fJumpCutMultiplier` |
 | 코요테·점프 버퍼 시간 | `src/data/PlayerDef_C.h` | `fCoyoteTime`, `fJumpBufferTime` |
 | 공격 범위·지속·대기·버퍼 | `src/data/PlayerDef_C.h` | `vAttackSize`, `fAttackActiveTime`, `fAttackRecoverTime`, `fAttackBufferTime` |
@@ -62,6 +73,33 @@ ctest --test-dir build -C Debug --output-on-failure                             
 ```
 - 로직은 `GameLogic` 라이브러리(raylib 링크 안 됨). raylib을 include하면 빌드가 깨지는 게 정상 = 로직/렌더 분리 강제.
 
+## 4-1. 구조 파악용: 읽는 순서 (30분 코스)
+위에서 아래로. 각 파일은 짧음(대부분 100줄 이하).
+| 순서 | 파일 | 볼 것 |
+|---|---|---|
+| 1 | `src/main_C.cpp` | 창 만들고 `Game` 하나 만들어 `Run()`. 프로그램 전체가 이게 끝 |
+| 2 | `src/core/Game_C.h` | Game이 **소유하는 것 목록** = 이 게임의 전부 (시스템들 + World + 방) |
+| 3 | `src/core/Game_C.cpp` | `Run()` = Unity의 Update+Render, `FixedUpdate()` = 시스템 호출 **순서**만 있음 |
+| 4 | `src/core/Entity_U.h` | 엔티티 하나가 들고 있는 데이터 (몸·HP·의도·이동 상태·공격 상태·피격·AI) |
+| 5 | `src/systems/Input_C.cpp` | 키 → `MoveIntent`/`AttackIntent` (위치는 안 건드림) |
+| 6 | `src/systems/PlayerMotor_C.cpp` | 의도 → 속도 (관성·대시·점프 보조) |
+| 7 | `src/systems/Physics_C.cpp` | 속도 → 위치 + 타일 충돌 |
+| 8 | `src/systems/Combat_C.cpp` | 공격 키 → 히트박스 → 맞은 대상 HP·넉백 |
+| 9 | `src/render/Render_C.cpp` | 전부 `const`로 읽어서 사각형 그리기 |
+
+**예: X를 눌렀을 때 한 바퀴**
+```
+[렌더 프레임] Input.Poll        X 눌림 -> player.tAttackIntent.bAttackPressed = true (래치)
+[고정 틱]     Motor·Physics     (공격과 무관, 평소대로 이동)
+              Combat.UpdateAttack  bAttackPressed -> 버퍼 -> Ready면 Active 시작, 히트박스 = 몸 앞 40x32
+              Combat.ResolveHits   SpatialQuery로 히트박스와 겹친 엔티티 -> 적이면 HP -10, 넉백, 깜빡임, HitReport
+              Particles            HitReport -> 파편 생성
+              World.FlushRemovals  HP 0 적 실제 삭제
+              (Game)               래치 해제: bAttackPressed = false
+[렌더 프레임] Render.Draw        히트박스(빨강)·깜빡임(흰색)·파편 그리기
+```
+적(Chaser)도 똑같음. 다른 건 첫 줄뿐: Input 대신 **EnemyAI가 의도를 씀.**
+
 ## 5. 이름 규칙 요약 (상세: CLAUDE.md "명명")
 - 파일: AI만 작성 = `이름_C.h/.cpp`, 사용자만 작성 = `이름_U.h/.cpp`, 섞이면 접미사 없음 + 파일 안 `// work: claude` / `// work: user` 구역 주석
 - 변수: 헝가리안 (`fSpeed`, `bGrounded`, `vPos`, `tBody`, 클래스 멤버는 `m_` 추가)
@@ -83,6 +121,10 @@ ctest --test-dir build -C Debug --output-on-failure                             
 | `src/systems/Combat_C.h/.cpp` | 근접 공격 단계, 피격 판정(HP·넉백·깜빡임) | AI |
 | `src/systems/SpatialQuery_C.h/.cpp` | 주변 엔티티 검색 (MVP 전체 순회) | AI |
 | `src/render/Particles_C.h/.cpp` | 피격 파편 (연출 전용) | AI |
+| `src/systems/RoomFlow_C.h/.cpp` | 타이틀·방 진행·문·게임 오버·승리 | AI |
+| `src/render/ViewCamera_C.h`, `Hud_C.h/.cpp` | 카메라(플레이어 따라감), 화면 UI | AI |
+| `src/data/Rooms_C.h`, `EntityFactory_C.h` | 방 4개 데이터, 종류별 초기 Entity | AI |
+| `src/systems/EnemyAI`, `Stats` (예정) | 적 FSM, 스탯 계산 | **사용자** (`docs/design/user-tasks.md`) |
 | `src/render/Render_C.h/.cpp` | 그리기 | AI |
 | `src/data/*_C.h` | 튜닝 값·방 데이터 | AI (값 조정은 사용자) |
 | `tests/*_C.cpp` | 테스트 (`WorldTest_C.cpp`는 World 스펙) | AI |

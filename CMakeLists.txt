@@ -112,9 +112,31 @@ add_library(GameLogic STATIC
     src/systems/Physics_C.cpp
     src/systems/Combat_C.cpp
     src/systems/SpatialQuery_C.cpp
+    src/systems/RoomFlow_C.cpp
 )
 target_include_directories(GameLogic PUBLIC ${CMAKE_SOURCE_DIR}/src)
 game_set_options(GameLogic)
+
+# EnemyAI (사용자 작성): src/systems/EnemyAI.cpp (리뷰 후 EnemyAI_U.cpp)를 만들면 자동으로 빌드·테스트에 포함.
+# 파일이 생긴 뒤 "cmake -S . -B build"로 한 번 재구성할 것.
+set(GAME_HAS_ENEMY_AI OFF)
+foreach(aiSource src/systems/EnemyAI_U.cpp src/systems/EnemyAI.cpp)
+    if(NOT GAME_HAS_ENEMY_AI AND EXISTS ${CMAKE_SOURCE_DIR}/${aiSource})
+        set(GAME_HAS_ENEMY_AI ON)
+        target_sources(GameLogic PRIVATE ${aiSource})
+    endif()
+endforeach()
+message(STATUS "EnemyAI 구현 포함: ${GAME_HAS_ENEMY_AI}")
+
+# Stats (사용자 작성): src/systems/Stats.cpp (리뷰 후 Stats_U.cpp)를 만들면 자동 포함. 재구성 필요
+set(GAME_HAS_STATS OFF)
+foreach(statsSource src/systems/Stats_U.cpp src/systems/Stats.cpp)
+    if(NOT GAME_HAS_STATS AND EXISTS ${CMAKE_SOURCE_DIR}/${statsSource})
+        set(GAME_HAS_STATS ON)
+        target_sources(GameLogic PRIVATE ${statsSource})
+    endif()
+endforeach()
+message(STATUS "Stats 구현 포함: ${GAME_HAS_STATS}")
 
 # ---------------------------------------------------------------------------
 # 게임 실행 파일 (raylib 의존 부분: 창, 입력, 렌더, 메인 루프)
@@ -125,6 +147,7 @@ add_executable(Main
     src/systems/Input_C.cpp
     src/render/Render_C.cpp
     src/render/Particles_C.cpp
+    src/render/Hud_C.cpp
 )
 target_link_libraries(Main PRIVATE GameLogic raylib)
 game_set_options(Main)
@@ -144,8 +167,15 @@ add_executable(tests
     tests/PlayerMotorTest_C.cpp
     tests/CombatTest_C.cpp
     tests/HitTest_C.cpp
+    tests/RoomFlowTest_C.cpp
     tests/WorldTest_C.cpp       # World 스펙 테스트 (AI 작성, 사용자 구현이 통과)
 )
+if(GAME_HAS_ENEMY_AI)
+    target_sources(tests PRIVATE tests/EnemyAITest_C.cpp)  # EnemyAI 스펙 테스트 (AI 작성, 사용자 구현이 통과)
+endif()
+if(GAME_HAS_STATS)
+    target_sources(tests PRIVATE tests/StatsTest_C.cpp)    # Stats 스펙 테스트 (AI 작성, 사용자 구현이 통과)
+endif()
 target_link_libraries(tests PRIVATE GameLogic doctest::doctest)
 game_set_options(tests)
 game_copy_asan_runtime(tests)

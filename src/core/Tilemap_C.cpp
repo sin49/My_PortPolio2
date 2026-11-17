@@ -30,6 +30,30 @@ std::optional<Tilemap> Tilemap::FromRows(std::span<const std::string_view> spRow
     return tMap;
 }
 
+Tilemap Tilemap::FromSolids(int iCols, int iRows, std::span<const TileRect> spSolids)
+{
+    Tilemap tMap;
+    tMap.m_iCols = iCols;
+    tMap.m_iRows = iRows;
+    tMap.m_vecTiles.assign(static_cast<std::size_t>(iCols) * static_cast<std::size_t>(iRows), TileType::Empty);
+
+    auto fnFill = [&](const TileRect& rcTiles) {
+        for (int iY = rcTiles.iY; iY < rcTiles.iY + rcTiles.iH; ++iY)
+            for (int iX = rcTiles.iX; iX < rcTiles.iX + rcTiles.iW; ++iX)
+                if (iX >= 0 && iY >= 0 && iX < iCols && iY < iRows)
+                    tMap.m_vecTiles[static_cast<std::size_t>(iY) * static_cast<std::size_t>(iCols) +
+                                    static_cast<std::size_t>(iX)] = TileType::Solid;
+    };
+
+    fnFill({0, 0, iCols, 1});          // 천장
+    fnFill({0, iRows - 1, iCols, 1});  // 바닥
+    fnFill({0, 0, 1, iRows});          // 왼쪽 벽
+    fnFill({iCols - 1, 0, 1, iRows});  // 오른쪽 벽
+    for (const TileRect& rcTiles : spSolids)
+        fnFill(rcTiles);
+    return tMap;
+}
+
 TileType Tilemap::GetTile(int iTileX, int iTileY) const
 {
     if (iTileX < 0 || iTileY < 0 || iTileX >= m_iCols || iTileY >= m_iRows)
