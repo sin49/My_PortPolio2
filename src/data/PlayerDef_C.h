@@ -31,6 +31,13 @@ struct PlayerDef
     float fAttackActiveTime = 0.15f;    // 히트박스 유지
     float fAttackRecoverTime = 0.20f;   // 다음 공격까지 대기
     float fAttackBufferTime = 0.12f;    // 대기 중 미리 누른 공격 기억
+
+    // HP·피격
+    float fMaxHp = 100.0f;              // TODO(Stats): 최대 HP modifier
+    float fAttackDamage = 10.0f;        // TODO(Stats): 공격력 modifier
+    float fKnockbackSpeed = 320.0f;     // 맞은 쪽 수평 속도 (Motor 감속으로 미끄러지며 멈춤)
+    float fKnockbackUp = 220.0f;        // 살짝 뜸
+    float fHitFlashTime = 0.10f;        // 맞은 쪽 흰색 깜빡임
 };
 
 inline constexpr PlayerDef kPlayerDef{};

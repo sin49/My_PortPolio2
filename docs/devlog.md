@@ -69,6 +69,22 @@ AI 협업 기록. 날짜별로 "한 일 / AI가 제안한 것 / 사용자가 수
   Slot을 World 내부 private 타입으로, 헝가리안(`uIndex`, `m_vecSlots` 등), CP949 → UTF-8, 음수 루프 변수 명시 변환
 - Debug(/W4 + ASan) 경고 0, 테스트 39개 통과 (World 스펙 10개 포함). **1일차 목표(환경·이동·대시·근접·World) 완료**
 
+## 2026-11-18 (수)
+### 플레이어 → World 이전 (`docs/design/player-in-world.md`)
+- 결정: 플레이어 상태(의도·이동·공격)를 `Entity` 필드로 (사용자 이유: 나중에 PvP를 하면 이게 밑작업), Entity 필드 4개는 사용자가 직접 추가
+- AI: Game은 `World` + `m_hPlayer`만 보관, 시스템 호출은 `ForEachAlive`, 틱 끝에 `FlushRemovals`. Render는 `const World&` + const `Get`
+- 시스템 함수는 변경 없음 → 기존 테스트 39개 그대로 통과, 경고 0
+- 확장 희망 기록 (GDD 10장): PvP(로컬 2인 → 네트워크), Blasphemous풍 서브컬처 도트 (PixelLab + 손 보정 / 사용자 레퍼런스, 스프라이트 시트)
+
+### HP · 피격 판정 · SpatialQuery (`docs/design/hp-and-hit.md`)
+- 결정: Events는 듣는 시스템이 생기는 수·목에 (Combat이 HP 직접 차감, GDD 7장 수정), 맞은 목록 고정 16칸, 플레이어 HP 0은 삭제 안 함,
+  적대 판정은 eType(PvP 때 iTeam), 연출은 넉백 + 깜빡임
+- **사용자 추가:** 피격 시 하얀 파편 파티클 → AI가 World 밖 연출 전용 풀로 설계 (Combat은 `HitReport`만 남기고 연출을 모름)
+- 사용자 질문: 경직·무적이 왜 나중인가 → 작업량이 아니라 조율(스턴락·긴장감) 문제, Chaser 후 결정. `HitState` 구조체로 확장 자리 마련
+- 사용자 요청 기록: 조합 키(Shift 두 번 = 돌진 공격) → 입력 기록 + CommandRecognizer → 의도의 `eKind` (6장)
+- 사용자 작업: const `ForEachAlive` (C#엔 없는 const 오버로드), `Entity`에 `tHit`. 첫 시도에 `const Slot&` 누락 → 리뷰로 수정
+- 테스트 44개 통과, 경고 0
+
 ### 결정 (사용자 → AI 위임 포함)
 - `PlayerMotor` 분리는 사용자가 AI 판단에 맡김 → Physics를 적과 공용으로 유지하려고 분리, GDD 7장 표 수정
 - 플레이어 저장 위치: (B) Game이 임시 소유 (World는 사용자가 직접 작성 예정)

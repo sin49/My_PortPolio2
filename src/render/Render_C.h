@@ -1,9 +1,10 @@
 #pragma once
 
-struct AttackState;
-struct Body;
-struct PlayerMotorState;
+#include "core/Handle_U.h"
+
+class Particles;
 class Tilemap;
+class World;
 
 inline constexpr int kScreenWidth = 1280;
 inline constexpr int kScreenHeight = 720;
@@ -20,6 +21,6 @@ struct DebugInfo
 class Render
 {
 public:
-    void Draw(const Tilemap& tRoom, const Body& tPlayer, const PlayerMotorState& tMotor, const AttackState& tAttack,
+    void Draw(const Tilemap& tRoom, const World& tWorld, Handle hPlayer, const Particles& tParticles,
               const DebugInfo& tDebug) const;
 };

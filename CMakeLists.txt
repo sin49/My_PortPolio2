@@ -107,23 +107,14 @@ endfunction()
 # 파일명 규칙: AI 작성 = 이름_C / 사용자 작성 = 이름_U / 섞인 파일 = 접미사 없음 (CLAUDE.md 명명)
 add_library(GameLogic STATIC
     src/core/Tilemap_C.cpp
+    src/core/World_U.cpp
     src/systems/PlayerMotor_C.cpp
     src/systems/Physics_C.cpp
     src/systems/Combat_C.cpp
+    src/systems/SpatialQuery_C.cpp
 )
 target_include_directories(GameLogic PUBLIC ${CMAKE_SOURCE_DIR}/src)
 game_set_options(GameLogic)
-
-# World (사용자 작성): src/core/World.cpp (리뷰 후 World_U.cpp)를 만들면 자동으로 빌드·테스트에 포함됨.
-# 파일이 생긴 뒤에는 "cmake -S . -B build"로 한 번 재구성할 것.
-set(GAME_HAS_WORLD OFF)
-foreach(worldSource src/core/World_U.cpp src/core/World.cpp)
-    if(NOT GAME_HAS_WORLD AND EXISTS ${CMAKE_SOURCE_DIR}/${worldSource})
-        set(GAME_HAS_WORLD ON)
-        target_sources(GameLogic PRIVATE ${worldSource})
-    endif()
-endforeach()
-message(STATUS "World 구현 포함: ${GAME_HAS_WORLD}")
 
 # ---------------------------------------------------------------------------
 # 게임 실행 파일 (raylib 의존 부분: 창, 입력, 렌더, 메인 루프)
@@ -133,6 +124,7 @@ add_executable(Main
     src/core/Game_C.cpp
     src/systems/Input_C.cpp
     src/render/Render_C.cpp
+    src/render/Particles_C.cpp
 )
 target_link_libraries(Main PRIVATE GameLogic raylib)
 game_set_options(Main)
@@ -151,10 +143,9 @@ add_executable(tests
     tests/PhysicsTest_C.cpp
     tests/PlayerMotorTest_C.cpp
     tests/CombatTest_C.cpp
+    tests/HitTest_C.cpp
+    tests/WorldTest_C.cpp       # World 스펙 테스트 (AI 작성, 사용자 구현이 통과)
 )
-if(GAME_HAS_WORLD)
-    target_sources(tests PRIVATE tests/WorldTest_C.cpp)  # World 스펙 테스트 (AI 작성, 사용자 구현이 통과해야 함)
-endif()
 target_link_libraries(tests PRIVATE GameLogic doctest::doctest)
 game_set_options(tests)
 game_copy_asan_runtime(tests)

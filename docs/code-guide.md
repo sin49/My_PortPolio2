@@ -25,6 +25,7 @@ ctest --test-dir build -C Debug --output-on-failure                             
 | Esc | 종료 |
 
 화면 표시: 노란 사각형 = 플레이어(흰 테두리 = 땅에 서 있음, 하늘색 = 대시 중), 빨간 반투명 = 공격 히트박스, 왼쪽 위 = 디버그 수치.
+붉은 사각형 = 적(허수아비, 머리 위 HP 바), 맞으면 흰색 깜빡임 + 하얀 파편.
 
 ## 3. 수치 조정 (코드 로직은 안 건드려도 됨)
 | 바꾸고 싶은 것 | 파일 | 값 |
@@ -37,6 +38,10 @@ ctest --test-dir build -C Debug --output-on-failure                             
 | 코요테·점프 버퍼 시간 | `src/data/PlayerDef_C.h` | `fCoyoteTime`, `fJumpBufferTime` |
 | 공격 범위·지속·대기·버퍼 | `src/data/PlayerDef_C.h` | `vAttackSize`, `fAttackActiveTime`, `fAttackRecoverTime`, `fAttackBufferTime` |
 | 플레이어 크기 | `src/data/PlayerDef_C.h` | `vSize` |
+| 플레이어 HP·공격력·넉백·깜빡임 | `src/data/PlayerDef_C.h` | `fMaxHp`, `fAttackDamage`, `fKnockbackSpeed/Up`, `fHitFlashTime` |
+| 적 크기·HP·속도·공격력 | `src/data/EnemyDef_C.h` | `kChaserDef` |
+| 적 배치 (테스트 방) | `src/data/TestRoom_C.h` | `kTestRoomEnemySpawns` |
+| 피격 파편 개수·퍼짐·속도·수명 | `src/render/Particles_C.cpp` | 위쪽 `k~` 상수 |
 | 중력·최대 낙하 속도 | `src/data/PhysicsDef_C.h` | `fGravity`, `fMaxFallSpeed` (낙하 속도는 틱당 32px 미만이어야 함, 넘으면 컴파일 에러로 알려줌) |
 | 테스트 방 지형·스폰 위치 | `src/data/TestRoom_C.h` | `#` 벽 / `.` 빈칸, `kTestRoomPlayerSpawn` |
 | 화면 색 | `src/render/Render_C.cpp` | 위쪽 `k~Color` 상수 |
@@ -48,7 +53,11 @@ ctest --test-dir build -C Debug --output-on-failure                             
 렌더 프레임마다:  Input.Poll            키 -> MoveIntent / AttackIntent (눌린 순간은 래치)
 고정 틱(1/60s)마다: PlayerMotor.Update  MoveIntent -> 속도 (관성·대시·점프 보조·facing)
                    Physics.Update      중력, 이동, 타일 충돌, 접지
+                   SpatialQuery.Rebuild  (MVP: 할 일 없음, 해시 때 격자 재구축)
                    Combat.Update...    AttackIntent -> 공격 단계·히트박스
+                   Combat.ResolveHits  겹침 -> HP·넉백·깜빡임, HP 0 적 삭제 예약 -> HitReport
+                   Particles           HitReport -> 파편 생성·이동
+                   World.FlushRemovals 삭제 예약 실제 처리
 렌더 프레임마다:  Render.Draw          const&로 읽어서 그리기만
 ```
 - 로직은 `GameLogic` 라이브러리(raylib 링크 안 됨). raylib을 include하면 빌드가 깨지는 게 정상 = 로직/렌더 분리 강제.
@@ -71,7 +80,9 @@ ctest --test-dir build -C Debug --output-on-failure                             
 | `src/systems/Input_C.h/.cpp` | 키 -> 의도 | AI |
 | `src/systems/PlayerMotor_C.h/.cpp` | 의도 -> 속도 | AI |
 | `src/systems/Physics_C.h/.cpp` | 중력·충돌 | AI |
-| `src/systems/Combat_C.h/.cpp` | 근접 공격 | AI |
+| `src/systems/Combat_C.h/.cpp` | 근접 공격 단계, 피격 판정(HP·넉백·깜빡임) | AI |
+| `src/systems/SpatialQuery_C.h/.cpp` | 주변 엔티티 검색 (MVP 전체 순회) | AI |
+| `src/render/Particles_C.h/.cpp` | 피격 파편 (연출 전용) | AI |
 | `src/render/Render_C.h/.cpp` | 그리기 | AI |
 | `src/data/*_C.h` | 튜닝 값·방 데이터 | AI (값 조정은 사용자) |
 | `tests/*_C.cpp` | 테스트 (`WorldTest_C.cpp`는 World 스펙) | AI |

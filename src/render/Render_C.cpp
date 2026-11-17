@@ -3,10 +3,15 @@
 #include "core/Body_C.h"
 #include "core/Rect_C.h"
 #include "core/Tilemap_C.h"
+#include "core/World_U.h"
+#include "data/EnemyDef_C.h"
+#include "render/Particles_C.h"
 #include "systems/Combat_C.h"
 #include "systems/PlayerMotor_C.h"
 
 #include "raylib.h"
+
+#include <algorithm>
 
 namespace
 {
@@ -21,6 +26,11 @@ constexpr Color kPlayerColor = {232, 196, 92, 255};
 constexpr Color kPlayerDashColor = {110, 210, 240, 255};
 constexpr Color kPlayerGroundedOutline = {255, 255, 255, 255};
 constexpr Color kHitboxColor = {240, 80, 80, 140};
+constexpr Color kEnemyColor = {200, 70, 90, 255};
+constexpr Color kHitFlashColor = {255, 255, 255, 255};
+constexpr Color kHpBarColor = {120, 220, 120, 255};
+constexpr Color kHpBarBackColor = {40, 40, 40, 255};
+constexpr Color kSparkColor = {255, 255, 255, 255};
 constexpr Color kDebugTextColor = {220, 220, 220, 255};
 
 // raylib의 Rectangle은 외부 타입이라 필드명(x, y, width, height)이 raylib 것 그대로임
@@ -42,12 +52,40 @@ void DrawRoom(const Tilemap& tRoom)
     }
 }
 
-void DrawPlayer(const Body& tPlayer, const PlayerMotorState& tMotor)
+void DrawPlayer(const Entity& tPlayer)
 {
-    const Rectangle tScreenRect = ToScreen(Rect{tPlayer.vPos.fX, tPlayer.vPos.fY, tPlayer.vSize.fX, tPlayer.vSize.fY});
-    DrawRectangleRec(tScreenRect, tMotor.tDash.bActive ? kPlayerDashColor : kPlayerColor);
-    if (tPlayer.bGrounded)
+    const Rectangle tScreenRect = ToScreen(GetBounds(tPlayer.tBody));
+    Color tColor = tPlayer.tMotor.tDash.bActive ? kPlayerDashColor : kPlayerColor;
+    if (tPlayer.tHit.fFlashTimer > 0.0f)
+        tColor = kHitFlashColor;
+    DrawRectangleRec(tScreenRect, tColor);
+    if (tPlayer.tBody.bGrounded)
         DrawRectangleLinesEx(tScreenRect, 2.0f, kPlayerGroundedOutline);
+}
+
+void DrawEnemy(const Entity& tEnemy)
+{
+    const Rectangle tScreenRect = ToScreen(GetBounds(tEnemy.tBody));
+    DrawRectangleRec(tScreenRect, tEnemy.tHit.fFlashTimer > 0.0f ? kHitFlashColor : kEnemyColor);
+
+    // 머리 위 HP 바
+    const float fRatio = std::clamp(tEnemy.fHp / kChaserDef.fMaxHp, 0.0f, 1.0f);
+    const Rectangle tBarBack = {tScreenRect.x, tScreenRect.y - 6.0f, tScreenRect.width, 3.0f};
+    DrawRectangleRec(tBarBack, kHpBarBackColor);
+    DrawRectangleRec(Rectangle{tBarBack.x, tBarBack.y, tBarBack.width * fRatio, tBarBack.height}, kHpBarColor);
+}
+
+void DrawParticles(const Particles& tParticles)
+{
+    for (const Particle& tParticle : tParticles.GetAll())
+    {
+        if (tParticle.fLife <= 0.0f)
+            continue;
+        const float fRatio = tParticle.fLife / tParticle.fMaxLife;  // 1 -> 0
+        const float fSize = tParticle.fSize * (1.0f + 2.0f * fRatio) / 3.0f;  // 시작 크기 -> 1/3
+        const Rect rcSpark = {tParticle.vPos.fX - fSize * 0.5f, tParticle.vPos.fY - fSize * 0.5f, fSize, fSize};
+        DrawRectangleRec(ToScreen(rcSpark), Fade(kSparkColor, fRatio));
+    }
 }
 
 void DrawAttack(const AttackState& tAttack)
@@ -67,9 +105,11 @@ const char* ToString(AttackPhase ePhase)
     return "?";
 }
 
-void DrawDebug(const Body& tPlayer, const PlayerMotorState& tMotor, const AttackState& tAttack,
-               const DebugInfo& tDebug)
+void DrawDebug(const Entity& tPlayerEntity, int iAliveCount, const DebugInfo& tDebug)
 {
+    const Body& tPlayer = tPlayerEntity.tBody;
+    const PlayerMotorState& tMotor = tPlayerEntity.tMotor;
+    const AttackState& tAttack = tPlayerEntity.tAttack;
     constexpr int kX = 40;
     constexpr int kLineHeight = 22;
     constexpr int kFontSize = 20;
@@ -89,19 +129,31 @@ void DrawDebug(const Body& tPlayer, const PlayerMotorState& tMotor, const Attack
     DrawText(TextFormat("dash gauge: %.2f %s   attack: %s", tMotor.tDash.fGauge,
                         tMotor.tDash.bExhausted ? "(EXHAUSTED)" : "", ToString(tAttack.ePhase)),
              kX, iY, kFontSize, kDebugTextColor);
+    iY += kLineHeight;
+    DrawText(TextFormat("player hp: %.0f   entities: %d", tPlayerEntity.fHp, iAliveCount), kX, iY, kFontSize,
+             kDebugTextColor);
 }
 } // namespace
 
-void Render::Draw(const Tilemap& tRoom, const Body& tPlayer, const PlayerMotorState& tMotor, const AttackState& tAttack,
+void Render::Draw(const Tilemap& tRoom, const World& tWorld, Handle hPlayer, const Particles& tParticles,
                   const DebugInfo& tDebug) const
 {
     BeginDrawing();
     ClearBackground(kFrameColor);
 
     DrawRoom(tRoom);
-    DrawPlayer(tPlayer, tMotor);
-    DrawAttack(tAttack);
-    DrawDebug(tPlayer, tMotor, tAttack, tDebug);
+    tWorld.ForEachAlive([](Handle, const Entity& tEntity) {  // const 순회: Render는 World를 못 바꿈
+        if (tEntity.eType == EntityType::Enemy)
+            DrawEnemy(tEntity);
+    });
+    if (const Entity* pPlayer = tWorld.Get(hPlayer))
+    {
+        DrawPlayer(*pPlayer);
+        DrawAttack(pPlayer->tAttack);
+    }
+    DrawParticles(tParticles);
+    if (const Entity* pPlayer = tWorld.Get(hPlayer))
+        DrawDebug(*pPlayer, tWorld.GetAliveCount(), tDebug);
 
     EndDrawing();
 }

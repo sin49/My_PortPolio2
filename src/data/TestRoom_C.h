@@ -37,3 +37,10 @@ inline constexpr std::array<std::string_view, kRoomRows> kTestRoom = {
 };
 
 inline constexpr Vec2 kTestRoomPlayerSpawn = {64.0f, 600.0f};
+
+// 허수아비 적 위치: 18행 발판 아래 통로(19~20행, y 608~672)에 들어가게 y = 630
+inline constexpr std::array<Vec2, 3> kTestRoomEnemySpawns = {{
+    {320.0f, 630.0f},
+    {480.0f, 630.0f},
+    {1000.0f, 630.0f},
+}};

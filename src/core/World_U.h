@@ -25,13 +25,23 @@ public:
 
     // fnVisit(Handle, Entity&). 순회 중 Destroy는 예약만 하므로 안전.
     template <typename Fn>
-    void ForEachAlive(Fn&& fnVisit)
+    void ForEachAlive(Fn&& fnVisit) 
     {
         for (std::uint32_t uIndex = 0; uIndex < kCapacity; ++uIndex)
         {
             Slot& tSlot = m_vecSlots[uIndex];
             if (tSlot.bAlive)
                 fnVisit(Handle{uIndex, tSlot.uGen}, tSlot.tValue);
+        }
+    }
+    template <typename Fn>
+    void ForEachAlive(Fn&& fnVisit) const
+    {
+        for (std::uint32_t uIndex = 0; uIndex < kCapacity; ++uIndex)
+        {
+           const Slot& tSlot = m_vecSlots[uIndex];
+            if (tSlot.bAlive)
+                fnVisit(Handle{ uIndex, tSlot.uGen }, tSlot.tValue);
         }
     }
 
