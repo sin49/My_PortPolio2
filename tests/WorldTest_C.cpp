@@ -1,9 +1,8 @@
 // World 스펙 테스트 (AI 작성). 사용자가 구현한 World가 이 테스트를 통과하면 완료.
 // 테스트가 설계(docs/design/world.md)와 다르다고 생각되면 고치지 말고 먼저 논의.
-// 사용자 파일은 접미사 없이 만들어도 됨 -> 리뷰 때 AI가 _U로 바꾸면서 아래 include도 같이 고침.
-#include "core/Entity.h"
-#include "core/Handle.h"
-#include "core/World.h"
+#include "core/Entity_U.h"
+#include "core/Handle_U.h"
+#include "core/World_U.h"
 
 #include <cstdint>
 #include <stdexcept>

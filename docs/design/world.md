@@ -1,6 +1,6 @@
 # World (엔티티 핸들 풀) — 설계
 
-> 상태: **합의됨 (2026-11-17)**. 사용자가 구현 → `tests/WorldTest_C.cpp`(AI 작성 스펙)를 통과시키면 완료 → AI 리뷰.
+> 상태: **구현 완료 (2026-11-17)**. 사용자 구현(`src/core/Handle_U.h`, `Entity_U.h`, `World_U.h/.cpp`), World 스펙 테스트 10개 통과.
 > 기준: GDD 11장 핸들 풀 의사코드, CLAUDE.md "핵심 구조 결정"
 
 ## 1. 결정 기록
@@ -61,7 +61,27 @@ public:
 - `Fn&&`의 C# 비교: `Action<Handle, Entity>`를 받는 것과 같은 역할. 템플릿이라 호출이 인라인됨.
 
 ## 3. 의사코드
+> 이 장만 따라가도 2장 인터페이스가 다 나오게 씀. `[C++]` 줄 = C#과 다르게 써야 하는 부분.
 ```
+// ---------- Handle.h ----------
+Handle { uint32 uIndex = 0; uint32 uGen = 0; }
+    // [C++] 생성자를 만들지 말 것. 필드에 "= 0"만 붙임
+    //       -> Handle{}, Handle{3, 1}, Handle{.uIndex = 3, .uGen = 1} 모두 가능 (생성자를 만들면 마지막 형태가 막힘)
+
+IsNull() const -> bool:
+    return uGen == 0
+    // [C++] 함수 뒤 const = 이 함수는 필드를 안 바꿈 (const Handle에서도 호출 가능)
+
+operator==(other) const -> bool:
+    // [C++] 직접 짜지 말고 "bool operator==(const Handle&) const = default;" 한 줄
+    //       (C++20: 필드를 하나씩 비교하는 코드를 컴파일러가 만들어 줌)
+
+// ---------- Entity.h ----------
+// 2장 Entity.h 블록을 그대로 따라 씀 (EntityType enum class + Entity 필드 3개, Body_C.h include)
+
+// ---------- World.h / World.cpp ----------
+kCapacity = 256          // [C++] static constexpr std::uint32_t kCapacity = 256;  아래 256/255는 전부 이걸로
+
 Slot { Entity value; uint32 gen = 1; bool alive = false; bool pendingDestroy = false; }
 
 World():
@@ -69,9 +89,9 @@ World():
     freeList = 255, 254, ..., 0     // 뒤에서 pop -> 0번부터 쓰게
     pendingList = 비어 있음 (reserve(256))
 
-Create(initial):
+Create(initial: const Entity&) -> Handle:
     if freeList 비었음: throw runtime_error("World 용량 초과")
-    idx = freeList.pop_back()
+    idx = freeList.back(); freeList.pop_back()     // [C++] pop_back()은 값을 안 돌려줌
     slots[idx].value = initial; alive = true; pendingDestroy = false
     return Handle{idx, slots[idx].gen}
 
@@ -79,6 +99,14 @@ Get(h):
     if h.index >= 256: return nullptr
     s = slots[h.index]
     return (s.alive && s.gen == h.gen) ? &s.value : nullptr     // gen 0 핸들은 항상 불일치
+
+Get(h) const -> const Entity*:
+    위 Get과 똑같은 검사·반환
+    // [C++] 함수 뒤 const 버전이 따로 있어야 const World&(Render)에서 호출 가능. 반환형도 const Entity*
+
+GetAliveCount() const -> int:
+    return kCapacity - freeList 개수        // 빈 칸이 아닌 것 = 살아 있음(예약 포함)
+    // [C++] size()는 부호 없는 size_t -> static_cast<int>(...)로 바꿔서 반환 (/W4 경고 방지)
 
 Destroy(h):
     if Get(h) == nullptr: return            // 무효 핸들 무시
@@ -107,6 +135,22 @@ ForEachAlive(fn):
   (C#에서 foreach가 느렸던 건 주로 옛 Mono의 열거자 GC 할당 때문. C++엔 GC가 없음)
 - `std::function`으로 받으면 간접 호출이 생겨 느려짐 -> 템플릿으로 받을 것. 이건 메타프로그래밍이 아니라 평범한 함수 템플릿이라 CLAUDE.md 규칙에 걸리지 않음.
 - 진짜 비용은 **죽은 칸까지 256개를 다 훑는 것**. 지금은 무시할 수준. 스트레스 모드에서 느리면 "살아 있는 인덱스 목록(dense list)" 추가로 개선.
+
+### 3-2. 의사코드에 빠져 있던 것 (11/17 보완, 사용자·Codex 피드백)
+> 처음 의사코드엔 아래 항목이 없었음 (AI 안내 누락). **지금은 3장 의사코드에 다 넣었으니 3장만 따라가면 됨.** 이 표는 요약용.
+
+| 무엇 | 목적 | 입력 → 출력 | 의사코드 | C++ 포인트 |
+|---|---|---|---|---|
+| `Handle` 필드 초기화 | 생성자 없이 `Handle{}`, `Handle{.uIndex=3, .uGen=1}` 둘 다 되게 | — | 필드에 `= 0` 붙이고 생성자는 지움 | 생성자를 직접 만들면 "집합체(aggregate)"가 아니게 돼서 `{.uIndex = ...}` 지정 초기화가 컴파일 안 됨 (테스트가 씀) |
+| `Handle::IsNull() const` | 무효 핸들인지 | 없음 → `bool` | `return uGen == 0` | 뒤의 `const` = 이 함수는 멤버를 안 바꿈 |
+| `Handle::operator==` | 핸들 두 개 비교 (`h1 == h2`) | `const Handle&` → `bool` | 인덱스·세대가 다 같으면 true | C++20은 `= default;` 한 줄이면 컴파일러가 필드별 비교를 만들어 줌 |
+| `kCapacity` | 256을 한 곳에서만 | — | 코드 속 `256`, `255`를 전부 이 상수로 | `static constexpr std::uint32_t kCapacity = 256;` (C#의 `const`) |
+| `Get(Handle) const` | `const World&`로도 읽기 (Render용) | `Handle` → `const Entity*` | 일반 `Get`과 같은 검사 | 함수 뒤 `const` 때문에 안에서 `slots[i]`도 const → 반환형도 `const Entity*`여야 함 |
+| `GetAliveCount() const` | 살아 있는(예약 포함) 수 | 없음 → `int` | `kCapacity - freeList 크기` (또는 alive 칸 세기) | `size()`는 `size_t`(부호 없음) → `static_cast<int>(...)`로 변환해야 /W4 경고 없음 |
+| `Entity` 필드 | 종류·몸체·HP | — | 2장 그대로 | `#include "core/Body_C.h"` 필요 |
+
+- `Create`의 인자는 `const Entity&`로: 값으로 받으면 호출할 때 한 번 더 복사됨. C#의 `in` 파라미터와 비슷.
+- `pop_back()`은 값을 돌려주지 않음 → `back()`으로 읽고 `pop_back()`으로 지우기 (의사코드의 `idx = freeList.pop_back()`은 C#식 표현이었음).
 
 ## 4. 결정 7 — A(Flush 전까지 유효) vs B(Destroy 즉시 nullptr)
 > Unity 비유: GC가 아니라 **`Destroy()`의 동작**과 같음. Unity도 `Destroy(obj)` 후 같은 프레임 동안은 접근되고, 프레임 끝에 실제로 사라짐 = **A**.

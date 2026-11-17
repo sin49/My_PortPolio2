@@ -67,7 +67,7 @@ ctest --test-dir build -C Debug --output-on-failure                             
 | `src/core/Vec2_C.h`, `Rect_C.h`, `Body_C.h` | 공용 타입 | AI |
 | `src/core/MoveIntent_C.h`, `AttackIntent_C.h` | 의도 (Input·AI가 기록) | AI |
 | `src/core/Tilemap_C.h/.cpp` | 타일 격자 | AI |
-| `src/core/Handle`, `Entity`, `World` (.h/.cpp) | 엔티티 핸들 풀 | **사용자** (설계: `docs/design/world.md`, 리뷰 후 `_U`) |
+| `src/core/Handle_U.h`, `Entity_U.h`, `World_U.h/.cpp` | 엔티티 핸들 풀 | **사용자** (Codex 보조. 파일 분리·명명은 AI가 기계적으로 정리) |
 | `src/systems/Input_C.h/.cpp` | 키 -> 의도 | AI |
 | `src/systems/PlayerMotor_C.h/.cpp` | 의도 -> 속도 | AI |
 | `src/systems/Physics_C.h/.cpp` | 중력·충돌 | AI |
@@ -83,3 +83,5 @@ ctest --test-dir build -C Debug --output-on-failure                             
 | `docs/design/*.md` | 기능별 의사코드·결정 기록 (구현 전에 합의) |
 | `docs/devlog.md` | 날짜별 한 일 / AI 제안 / 사용자 수정·거절 |
 | `docs/cpp-notes.md` | 헷갈린 C++ 개념 (C# 비교) |
+| `docs/gpt_support.md` | Codex/GPT 보조 역할·리뷰 메모·대행 인수인계 (Codex 관리) |
+| `CLAUDE.md` / `AGENTS.md` | Claude / Codex가 따르는 프로젝트 규칙 |
