@@ -79,7 +79,7 @@ void SpatialHash::Insert(Handle hEntity, const Rect& rcBounds)
 | 6,000마리 몰림 기준 | FPS | 틱당 로직 |
 |---|---|---|
 | 전체 순회 (처음) | 25 | 7.04 ms |
-| + Spatial Hash | 35.6 | 3.32 ms (2.1배 빨라짐) |
+| + Spatial Hash | 36.3 | 3.02 ms (2.3배 빨라짐) |
 | + 미니맵·화면 밖 그리기 생략 | 60 (상한) | 3.58 ms |
 | → **9,900마리** | **58.7** | 8.05 ms |
 

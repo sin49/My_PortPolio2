@@ -1,0 +1,63 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 360" font-family="'Malgun Gothic','Apple SD Gothic Neo',sans-serif">
+  <rect width="960" height="360" fill="#ffffff"/>
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#5b6270"/></marker>
+  </defs>
+  <text x="24" y="34" font-size="20" font-weight="bold" fill="#1d1d1f">근접 적 AI — 명시적 상태 머신 (enum + 타이머)</text>
+  <text x="24" y="56" font-size="13" fill="#555">상태에 들어갈 때(Enter) 타이머를 데이터 표에서 설정 · 매 틱 지금 상태의 일만 · 위치는 안 바꾸고 의도만 기록</text>
+
+  <g font-size="15" text-anchor="middle">
+    <rect x="24" y="110" width="130" height="60" rx="30" fill="#eef1f6" stroke="#9aa3b2" stroke-width="2"/>
+    <text x="89" y="146" font-weight="bold">Idle</text>
+
+    <rect x="214" y="110" width="150" height="60" rx="30" fill="#eef1f6" stroke="#9aa3b2" stroke-width="2"/>
+    <text x="289" y="136" font-weight="bold">Chase</text>
+    <text x="289" y="156" font-size="12" fill="#555">이동 의도 = 플레이어 쪽</text>
+
+    <rect x="424" y="110" width="150" height="60" rx="30" fill="#fff0dc" stroke="#e08a2a" stroke-width="2"/>
+    <text x="499" y="136" font-weight="bold">Windup</text>
+    <text x="499" y="156" font-size="12" fill="#555">0.4초 · 공격 범위 표시</text>
+
+    <rect x="634" y="110" width="130" height="60" rx="30" fill="#fde4e4" stroke="#d05050" stroke-width="2"/>
+    <text x="699" y="136" font-weight="bold">Attack</text>
+    <text x="699" y="156" font-size="12" fill="#555">공격 의도 1틱</text>
+
+    <rect x="424" y="236" width="150" height="60" rx="30" fill="#eef1f6" stroke="#9aa3b2" stroke-width="2"/>
+    <text x="499" y="262" font-weight="bold">Recover</text>
+    <text x="499" y="282" font-size="12" fill="#555">회복 시간 (데이터 표)</text>
+  </g>
+
+  <g font-size="12" fill="#444">
+    <line x1="154" y1="132" x2="212" y2="132" stroke="#5b6270" stroke-width="2" marker-end="url(#a)"/>
+    <text x="183" y="122" text-anchor="middle">감지</text>
+    <line x1="212" y1="150" x2="156" y2="150" stroke="#5b6270" stroke-width="2" marker-end="url(#a)"/>
+    <text x="183" y="166" text-anchor="middle">놓침</text>
+
+    <line x1="364" y1="140" x2="422" y2="140" stroke="#5b6270" stroke-width="2" marker-end="url(#a)"/>
+    <text x="393" y="130" text-anchor="middle">사거리</text>
+
+    <line x1="574" y1="140" x2="632" y2="140" stroke="#5b6270" stroke-width="2" marker-end="url(#a)"/>
+    <text x="603" y="130" text-anchor="middle">타이머 0</text>
+
+    <path d="M699,170 L699,266 L576,266" fill="none" stroke="#5b6270" stroke-width="2" marker-end="url(#a)"/>
+    <text x="706" y="222">바로</text>
+
+    <path d="M424,266 L289,266 L289,172" fill="none" stroke="#5b6270" stroke-width="2" marker-end="url(#a)"/>
+    <text x="356" y="258" text-anchor="middle">타이머 0</text>
+  </g>
+
+  <rect x="800" y="96" width="140" height="210" rx="8" fill="#f7f7f9" stroke="#c8ccd4"/>
+  <text x="870" y="120" font-size="13" font-weight="bold" text-anchor="middle">같은 틀로 확장</text>
+  <g font-size="12" fill="#444">
+    <text x="814" y="146">· 원거리 적</text>
+    <text x="824" y="164">조준 → 발사 → 회복</text>
+    <text x="814" y="192">· 보스</text>
+    <text x="824" y="210">조준 3연사</text>
+    <text x="824" y="228">↔ 8방향 원형탄</text>
+    <text x="824" y="246">2페이즈 (HP 50%)</text>
+    <text x="814" y="276">새 행동 =</text>
+    <text x="814" y="294">enum 값 + case 하나</text>
+  </g>
+
+  <text x="24" y="336" font-size="12" fill="#777">이전 Unity 프로젝트(배터리)의 적 클래스: 상태가 bool 7개 + 코루틴에 흩어져 973줄 → 이번 근접 적 AI 100줄</text>
+</svg>

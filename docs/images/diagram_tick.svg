@@ -1,0 +1,78 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 440" font-family="'Malgun Gothic','Apple SD Gothic Neo',sans-serif">
+  <rect width="960" height="440" fill="#ffffff"/>
+  <text x="24" y="34" font-size="20" font-weight="bold" fill="#1d1d1f">한 틱(1/60초)의 흐름</text>
+  <text x="24" y="54" font-size="13" fill="#555">Game이 시스템과 World를 소유하고 필요한 것만 참조로 전달 (매니저·싱글톤 없음)</text>
+  <g transform="translate(0,12)">
+
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#5b6270"/></marker>
+  </defs>
+
+  <!-- row 1: intent producers -->
+  <g font-size="14">
+    <rect x="24" y="64" width="150" height="62" rx="8" fill="#eef1f6" stroke="#9aa3b2"/>
+    <text x="99" y="90" text-anchor="middle" font-weight="bold">Input</text>
+    <text x="99" y="110" text-anchor="middle" fill="#555">키 → 이동·공격 의도</text>
+
+    <rect x="204" y="64" width="210" height="62" rx="8" fill="#fff4e0" stroke="#e0a040" stroke-width="2"/>
+    <text x="309" y="90" text-anchor="middle" font-weight="bold">EnemyAI (FSM)</text>
+    <text x="309" y="110" text-anchor="middle" fill="#555">상태 → 이동·공격 의도</text>
+
+    <rect x="444" y="64" width="160" height="62" rx="8" fill="#eef1f6" stroke="#9aa3b2"/>
+    <text x="524" y="90" text-anchor="middle" font-weight="bold">Shooter·Boss AI</text>
+    <text x="524" y="110" text-anchor="middle" fill="#555">발사 의도</text>
+
+    <rect x="634" y="64" width="150" height="62" rx="8" fill="#eef1f6" stroke="#9aa3b2"/>
+    <text x="709" y="90" text-anchor="middle" font-weight="bold">LedgeGuard</text>
+    <text x="709" y="110" text-anchor="middle" fill="#555">발판 끝이면 이동 0</text>
+  </g>
+  <line x1="174" y1="95" x2="202" y2="95" stroke="#5b6270" stroke-width="2" marker-end="url(#a)"/>
+  <line x1="414" y1="95" x2="442" y2="95" stroke="#5b6270" stroke-width="2" marker-end="url(#a)"/>
+  <line x1="604" y1="95" x2="632" y2="95" stroke="#5b6270" stroke-width="2" marker-end="url(#a)"/>
+  <text x="808" y="90" font-size="13" fill="#b04a2a" font-weight="bold">의도만 기록</text>
+  <text x="808" y="108" font-size="13" fill="#b04a2a">위치·HP는 안 바꿈</text>
+
+  <line x1="709" y1="126" x2="709" y2="156" stroke="#5b6270" stroke-width="2"/>
+  <line x1="709" y1="156" x2="99" y2="156" stroke="#5b6270" stroke-width="2"/>
+  <line x1="99" y1="156" x2="99" y2="178" stroke="#5b6270" stroke-width="2" marker-end="url(#a)"/>
+
+  <!-- row 2: state changers -->
+  <g font-size="14">
+    <rect x="24" y="180" width="150" height="62" rx="8" fill="#eef1f6" stroke="#9aa3b2"/>
+    <text x="99" y="206" text-anchor="middle" font-weight="bold">Motor · Physics</text>
+    <text x="99" y="226" text-anchor="middle" fill="#555">의도 → 속도 → 위치</text>
+
+    <rect x="204" y="180" width="150" height="62" rx="8" fill="#eef1f6" stroke="#9aa3b2"/>
+    <text x="279" y="206" text-anchor="middle" font-weight="bold">Projectiles</text>
+    <text x="279" y="226" text-anchor="middle" fill="#555">탄 이동·벽 충돌</text>
+
+    <rect x="384" y="180" width="220" height="62" rx="8" fill="#fff4e0" stroke="#e0a040" stroke-width="2"/>
+    <text x="494" y="206" text-anchor="middle" font-weight="bold">SpatialQuery (Spatial Hash)</text>
+    <text x="494" y="226" text-anchor="middle" fill="#555">근처 후보만 검색</text>
+
+    <rect x="634" y="180" width="150" height="62" rx="8" fill="#eef1f6" stroke="#9aa3b2"/>
+    <text x="709" y="206" text-anchor="middle" font-weight="bold">Combat</text>
+    <text x="709" y="226" text-anchor="middle" fill="#555">히트 판정·피해</text>
+  </g>
+  <line x1="174" y1="211" x2="202" y2="211" stroke="#5b6270" stroke-width="2" marker-end="url(#a)"/>
+  <line x1="354" y1="211" x2="382" y2="211" stroke="#5b6270" stroke-width="2" marker-end="url(#a)"/>
+  <line x1="604" y1="211" x2="632" y2="211" stroke="#5b6270" stroke-width="2" marker-end="url(#a)"/>
+  <line x1="784" y1="211" x2="812" y2="211" stroke="#5b6270" stroke-width="2" marker-end="url(#a)"/>
+  <rect x="814" y="180" width="122" height="62" rx="8" fill="#fff4e0" stroke="#e0a040" stroke-width="2"/>
+  <text x="875" y="206" text-anchor="middle" font-size="14" font-weight="bold">World</text>
+  <text x="875" y="226" text-anchor="middle" font-size="13" fill="#555">FlushRemovals</text>
+
+  <!-- world band -->
+  <rect x="24" y="276" width="912" height="56" rx="8" fill="#fff4e0" stroke="#e0a040" stroke-width="2"/>
+  <text x="40" y="300" font-size="15" font-weight="bold">World — 고정 슬롯 풀 + 세대 번호 핸들</text>
+  <text x="40" y="320" font-size="13" fill="#555">모든 시스템이 엔티티를 Handle{칸, 세대}로 참조 · 순회 중 삭제는 예약만, 틱 끝에 일괄 삭제</text>
+
+  <!-- render -->
+  <rect x="24" y="352" width="912" height="56" rx="8" fill="#e8f4ec" stroke="#5aa070"/>
+  <text x="40" y="376" font-size="15" font-weight="bold">Render · HUD — 매 프레임, 게임 상태를 const&amp;로 읽기만</text>
+  <text x="40" y="396" font-size="13" fill="#555">예: 적이 Windup 상태면 깜빡임 + 공격 범위 표시 (AI 코드 수정 없이 붙음)</text>
+
+  <rect x="740" y="4" width="16" height="16" fill="#fff4e0" stroke="#e0a040" stroke-width="2"/>
+  <text x="762" y="17" font-size="13" fill="#555">의사코드 보고 직접 구현</text>
+  </g>
+</svg>
