@@ -4,6 +4,7 @@
 #include "data/EnemyDef_C.h"
 #include "data/PlayerDef_C.h"
 #include "systems/Combat_C.h"
+#include "systems/EnemyAI_U.h"
 #include "systems/SpatialQuery_C.h"
 
 #include <vector>
@@ -142,4 +143,36 @@ TEST_CASE("Hit: 적끼리는 안 때림, 겹치지 않으면 안 맞음")
     CHECK(tWorld.Get(hOther)->fHp == doctest::Approx(30.0f));
     CHECK(tWorld.Get(hFarPlayer)->fHp == doctest::Approx(100.0f));
     CHECK(vecReports.empty());
+}
+
+TEST_CASE("Hit + EnemyAI: Chaser가 붙으면 예고 뒤 플레이어를 정확히 1번 때림")
+{
+    World tWorld;
+    const SpatialQuery tSpatial(tWorld);
+    Combat tCombat;
+    const EnemyAI tAI;
+    std::vector<HitReport> vecReports;
+
+    // 플레이어 몸 100~124, 적(작음) 몸 132~154 -> 가까움, 적은 왼쪽(플레이어 쪽)을 봄
+    const Handle hPlayer = tWorld.Create(MakeEntity(EntityType::Player, {100.0f, 200.0f}, kPlayerDef.vSize, 100.0f));
+    Entity tChaser = MakeEntity(EntityType::Enemy, {132.0f, 212.0f}, kEnemySizes[0].vSize, 10.0f);
+    tChaser.tMotor.iFacing = -1;
+    tWorld.Create(tChaser);
+
+    int iHitTicks = 0;
+    for (int i = 0; i < 60; ++i)  // 1초: 감지 -> 예고 0.4초 -> 공격 -> 휴식 0.6초 중 (두 번째 예고는 약 1.03초부터)
+    {
+        tAI.Update(tWorld, hPlayer, kDt);
+        tWorld.ForEachAlive([&](Handle, Entity& tEntity) {
+            const AttackDef& tDef = tEntity.eType == EntityType::Player ? kPlayerDef.tAttack : kChaserDef.tAttack;
+            tCombat.UpdateAttack(tEntity.tAttackIntent, tEntity.tBody, tEntity.tMotor.iFacing, tDef, tEntity.tAttack,
+                                 kDt);
+        });
+        vecReports.clear();
+        tCombat.ResolveHits(tWorld, tSpatial, vecReports, kDt);
+        if (!vecReports.empty())
+            ++iHitTicks;
+    }
+    CHECK(iHitTicks == 1);
+    CHECK(tWorld.Get(hPlayer)->fHp == doctest::Approx(100.0f - kChaserDef.fAttackDamage));
 }

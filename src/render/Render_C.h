@@ -2,7 +2,9 @@
 
 #include "core/Handle_U.h"
 #include "core/Vec2_C.h"
+#include "data/ItemDefs_C.h"
 
+class Items;
 class ViewCamera;
 class Particles;
 class RoomFlow;
@@ -24,6 +26,13 @@ struct DebugInfo
     bool bShow = false;  // F1
 };
 
+// 아이템 획득 알림 (연출 상태, Game이 관리)
+struct PickupNotice
+{
+    ItemId eItem = ItemId::Potion;
+    float fTimer = 0.0f;  // > 0 이면 표시 중
+};
+
 // 한 프레임에 그릴 것 전부 (읽기 전용 묶음)
 struct FrameView
 {
@@ -33,6 +42,9 @@ struct FrameView
     const Particles& tParticles;
     const ViewCamera& tCamera;
     const RoomFlow& tRoomFlow;
+    const Items& tItems;
+    const StatBlock& tPlayerStats;  // 플레이어 최종 스탯 (최대 HP·공격력 표시용)
+    PickupNotice tPickupNotice;
     DebugInfo tDebug;
 };
 

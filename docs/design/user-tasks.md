@@ -5,16 +5,16 @@
 
 | 순서 | 작업 | 문서 | 스펙 테스트 | 이걸 기다리는 AI 작업 |
 |---|---|---|---|---|
-| 1 | **Entity 필드 추가** (아래) | 이 문서 | — | 투사체·보스·허수아비 |
-| 2 | **EnemyAI** (Chaser FSM) | `chaser.md` 3장 | `EnemyAITest_C.cpp` 9개 | Shooter·보스 AI (같은 모양으로) |
-| 3 | **Stats** (기본값 + modifier) | `stats.md` 2장 | `StatsTest_C.cpp` 7개 | 아이템 |
+| 1 (반) | **Entity 필드 추가** (아래). `tAI` 완료. **`Projectile_C.h` 생김 (11/19) → enum 3개·`tProjectile` 추가할 차례** | 이 문서 | — | 투사체·보스 |
+| 2 ✅ | **EnemyAI** (Chaser FSM, 11/19 완료) | `chaser.md` 3장 | `EnemyAITest_C.cpp` 9개 | Shooter·보스 AI (같은 모양으로) |
+| 3 ✅ | **Stats** (기본값 + modifier, 11/19 완료) | `stats.md` 2장 | `StatsTest_C.cpp` 7개 | 아이템 |
 | 4 | **Spatial Hash** (SpatialQuery 내부 교체) | 2·3 끝나면 AI가 의사코드 | 기존 + 새 테스트 | 스트레스 모드 |
 | 5 (선택) | **raylib 자원 RAII 래퍼** (아래 3장) | 사운드·스프라이트 작업 때 AI가 의사코드 | 컴파일 시간 검사(`static_assert`) | 사운드 |
 
 ## 1. Entity_U.h 추가분 (EnemyAI 작업 때 같이)
 ```
-#include "systems/EnemyAI.h"       // EnemyAIState (2번에서 사용자가 만듦)
-#include "systems/Projectile_C.h"  // ProjectileState (AI가 만든 뒤 알려 주면 추가)
+#include "systems/EnemyAI_U.h"     // EnemyAIState (완료)
+#include "systems/Projectile_C.h"  // ProjectileState, Faction (11/19 생성됨)
 
 enum class EntityType { Player, Enemy, Drop, Boss, Projectile, Shooter }   // Boss, Projectile, Shooter 추가
 

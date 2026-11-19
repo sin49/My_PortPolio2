@@ -1,6 +1,6 @@
 // Stats 스펙 테스트 (AI 작성). 사용자가 구현한 Stats가 이 테스트를 통과하면 완료.
 // 기준: docs/design/stats.md. 테스트가 설계와 다르다고 생각되면 고치지 말고 먼저 논의.
-#include "systems/Stats.h"
+#include "systems/Stats_U.h"
 
 #include <array>
 #include <vector>
@@ -76,4 +76,12 @@ TEST_CASE("Stats: 최종값은 0 미만이 안 됨")
 {
     const std::array<StatModifier, 1> arrMods = {{{.eStat = StatType::MoveSpeed, .eOp = ModOp::Mul, .fValue = -3.0f}}};
     CHECK(Stats::Calculate(kBase, arrMods).fMoveSpeed == doctest::Approx(0.0f));
+}
+
+TEST_CASE("Stats: StatBlock 기본 공격 범위 배율은 1.0, 빈 modifier면 그대로")
+{
+    const StatBlock tDefault = {};
+    CHECK(tDefault.fAttackRange == doctest::Approx(1.0f));
+    const std::vector<StatModifier> vecNone;
+    CHECK(Stats::Calculate(tDefault, vecNone).fAttackRange == doctest::Approx(1.0f));
 }

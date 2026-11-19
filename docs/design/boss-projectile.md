@@ -34,7 +34,7 @@ kBossBulletDef { vSize {12, 12}, fSpeed 320, fLifetime 3.0, fDamage 10 }
 ## 4. 의사코드 (AI)
 ```
 // ---------- systems/Projectile_C.h ----------
-struct ProjectileState { float fLife = 0; float fDamage = 0; EntityType eOwner = Enemy }   // eOwner = 진영
+struct ProjectileState { float fLife = 0; float fDamage = 0; Faction eOwner = Faction::Enemy }   // 진영. EntityType을 쓰면 Entity_U.h와 include 순환 -> 별도 enum Faction (11/19)
 
 class Projectiles:
     Spawn(World&, vPos, vDir, const ProjectileDef&, eOwner) -> Handle

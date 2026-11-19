@@ -124,7 +124,11 @@ ctest --test-dir build -C Debug --output-on-failure                             
 | `src/systems/RoomFlow_C.h/.cpp` | 타이틀·방 진행·문·게임 오버·승리 | AI |
 | `src/render/ViewCamera_C.h`, `Hud_C.h/.cpp` | 카메라(플레이어 따라감), 화면 UI | AI |
 | `src/data/Rooms_C.h`, `EntityFactory_C.h` | 방 4개 데이터, 종류별 초기 Entity | AI |
-| `src/systems/EnemyAI`, `Stats` (예정) | 적 FSM, 스탯 계산 | **사용자** (`docs/design/user-tasks.md`) |
+| `src/systems/EnemyAI_U.h/.cpp` | 적 FSM (의도만 씀) | **사용자** |
+| `src/systems/Stats_U.h/.cpp` | 스탯 계산 (기본값 + modifier, 원본 불변) | **사용자** (범위 for·마지막 순회 예시는 Codex 도움) |
+| `src/systems/Projectile_C.h` | 투사체 상태 (`Faction`, `ProjectileState`) | AI |
+| `src/systems/Items_C.h/.cpp` | 아이템 드랍·획득·스택 → modifier 목록 (스탯 직접 수정 X) | AI |
+| `src/data/ItemDefs_C.h` | 아이템 테이블 5종, 플레이어 기본 스탯, 회복약 확률 | AI |
 | `src/render/Render_C.h/.cpp` | 그리기 | AI |
 | `src/data/*_C.h` | 튜닝 값·방 데이터 | AI (값 조정은 사용자) |
 | `tests/*_C.cpp` | 테스트 (`WorldTest_C.cpp`는 World 스펙) | AI |

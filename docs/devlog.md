@@ -136,6 +136,47 @@ AI 협업 기록. 날짜별로 "한 일 / AI가 제안한 것 / 사용자가 수
 - 실행해서 점프 느낌 확인 → 수치(`data/PlayerDef.h`) 조정
 - World 핸들 풀 (사용자 작성) → 플레이어 이전
 
+## 2026-11-19 (목)
+### EnemyAI (사용자 구현) 리뷰·연결
+- 사용자가 `chaser.md` 3장 의사코드대로 Chaser FSM 구현 → **로직 수정 없음** (상태 전이·타이머·의도만 쓰기 전부 설계와 일치)
+- AI 기계적 정리만: `EnemyAI_U.h/.cpp`로 이름 변경, 헝가리안(`tworld`→`tWorld`, `fDX`→`fDx`), 상대 include → `systems/...`,
+  CP949 → UTF-8, 파일 끝 의사코드 복사 주석 제거, CMake 자동 감지 → 고정 등록
+- 스펙 테스트 9/9 통과 + AI 통합 테스트 1개(Chaser가 예고 뒤 플레이어를 정확히 1번 때림, HP 90)
+  - 첫 통합 테스트가 2번 맞아 실패 → 로직 문제 아님, 1.5초 안에 공격 주기가 두 번 돌아서. 테스트 시간을 1초로 수정
+- AI 연결: `Game.FixedUpdate` 맨 앞에 `EnemyAI.Update`, 튜토리얼 허수아비 `bPassive`, 예고(Windup) 주황 깜빡임, 허수아비 색 구분
+- 테스트 69개 통과, 경고 0
+
+### Stats (사용자 구현) 리뷰·연결
+- 사용자가 `stats.md` 2장대로 구현 (범위 for·마지막 스탯 순회 문법은 Codex가 예시 제공). VS가 `build/` 아래에 저장해서 AI가 `src/systems/Stats_U.cpp`로 옮김
+- Codex 리뷰(`gpt_support.md` 11/19) 2건 반영 — 둘 다 테스트가 못 잡던 것:
+  1. `GetField`의 마지막 `return`이 switch **안**에 있어 도달 불가 + 함수 끝 반환 없음(C4702/C4715) → switch 밖으로
+  2. `StatBlock::fAttackRange` 기본값이 0 (설계는 1.0) → 1.0 복원, 합계용 `tAdd`/`tMul`은 4개 다 0으로 지정 초기화
+  - 2번을 잡는 스펙 테스트 1개 추가 ("기본 공격 범위 배율은 1.0")
+- 기계적 정리: `Stats_U.h/.cpp`, 들여쓰기, `kALL`→`kAll`, CMake 자동 감지 → 고정 등록
+- VS가 지웠던 `EnemyAI.cpp`(옛 사본, `_U`와 내용 동일)를 다시 저장해 둔 것 삭제
+- 테스트 77개 통과, 경고 0
+
+### 다음 준비 (AI)
+- `systems/Projectile_C.h`: `ProjectileState` + **`Faction`** (설계의 `EntityType eOwner`는 Entity_U.h와 include 순환 → 별도 enum으로 변경, boss-projectile.md 수정)
+- `docs/design/items.md` 제안: 클리어 시 랜덤 1개 드랍, 5종(회복약·심장·숫돌·깃털·긴 칼날), 매 틱 `Stats::Calculate`
+
+### Entity 필드 (사용자)
+- 사용자가 `EntityType`에 Boss·Projectile·Shooter, `ProjectileState tProjectile` 추가
+- AI 정리: 오타 `ProHectile` → `Projectile`, include `"Systems/..."` → `"systems/..."` (Windows는 대소문자 무시라 빌드되지만 다른 OS에선 깨짐), 탭 → 공백
+
+### 아이템 (AI 구현, items.md)
+- 사용자가 제안을 받아들이면서 3가지 수정:
+  1. **회복약은 클리어 보상에서 빼고, 적이 죽을 때마다 확률 드랍** (다른 4종만 클리어 보상)
+  2. **회복약 확률은 플레이어 HP에 따라**: HP 가득 = 0%, 그 외 `5% + 35% × 잃은 HP 비율`
+  3. **인벤토리 UI = 텍스트**, HP·대시 게이지 밑. 회복약은 인벤토리에 안 남음
+- 구조 (책임 분리):
+  - `Items`는 스탯을 직접 바꾸지 않고 스택 수만 들고 있음 → `BuildModifiers` → 사용자 `Stats::Calculate(kPlayerBaseStats, mods)` → Game이 Motor 속도·Combat 공격력·히트박스 크기·최대 HP에 넘김
+  - 드랍 엔티티는 `Items`가 **핸들 목록**으로만 기억. 방이 바뀌어 지워지면 세대 번호 덕에 `Get` = nullptr → 따로 알리는 코드 없음 (사용자 World 핸들이 실제로 쓰이는 곳)
+  - `RoomFlow`는 아이템을 모름. Game이 "이번 틱에 Locked → Cleared"를 보고 보상 드랍
+  - Combat에 `HitReport.bTargetIsPlayer` 추가 (적 처치만 회복약 굴림), `ResolveHits`에 플레이어 공격력 인자
+- 화면: 바닥 아이템은 색 마름모 + 이름, 획득 알림, HUD는 `Feather x2   SPD +24%` 텍스트 (raylib 기본 글꼴 = 영어만)
+- 테스트 8개 추가 → 85개 통과, 경고 0, 5초 실행 크래시 없음
+
 ---
 
 <!-- 템플릿: 아래 블록을 복사해서 사용

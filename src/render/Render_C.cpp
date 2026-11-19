@@ -11,6 +11,7 @@
 #include "render/Hud_C.h"
 #include "render/Particles_C.h"
 #include "systems/Combat_C.h"
+#include "systems/Items_C.h"
 #include "systems/PlayerMotor_C.h"
 #include "systems/RoomFlow_C.h"
 
@@ -35,6 +36,8 @@ constexpr Color kGaugeExhaustedColor = {90, 90, 110, 255};
 constexpr Color kPlayerGroundedOutline = {255, 255, 255, 255};
 constexpr Color kHitboxColor = {240, 80, 80, 140};
 constexpr Color kEnemyColor = {200, 70, 90, 255};
+constexpr Color kDummyColor = {140, 110, 120, 255};   // 튜토리얼 허수아비 (공격 안 함)
+constexpr Color kWindupColor = {255, 160, 50, 255};   // 공격 예고
 constexpr Color kHitFlashColor = {255, 255, 255, 255};
 constexpr Color kHpBarColor = {120, 220, 120, 255};
 constexpr Color kHpBarBackColor = {40, 40, 40, 255};
@@ -137,13 +140,19 @@ void DrawPlayer(const Entity& tPlayer)
     }
 }
 
-void DrawEnemy(const Entity& tEnemy)
+void DrawEnemy(const Entity& tEnemy, float fPlayerDamage)
 {
     const Rectangle tRect = ToRaylib(GetBounds(tEnemy.tBody));
-    DrawRectangleRec(tRect, tEnemy.tHit.fFlashTimer > 0.0f ? kHitFlashColor : kEnemyColor);
+    Color tColor = tEnemy.tAI.bPassive ? kDummyColor : kEnemyColor;
+    // 공격 예고(Windup): 주황/빨강 0.05초마다 번갈아 -> 곧 때린다는 신호
+    if (tEnemy.tAI.eState == EnemyState::Windup && static_cast<int>(tEnemy.tAI.fTimer / 0.05f) % 2 == 0)
+        tColor = kWindupColor;
+    if (tEnemy.tHit.fFlashTimer > 0.0f)
+        tColor = kHitFlashColor;
+    DrawRectangleRec(tRect, tColor);
 
     // 머리 위: 남은 타격 수만큼 점 (1·2·3대). 글자 없이 몇 대 남았는지 보이게
-    const int iHitsLeft = static_cast<int>(std::ceil(tEnemy.fHp / kPlayerDef.fAttackDamage - 0.001f));
+    const int iHitsLeft = static_cast<int>(std::ceil(tEnemy.fHp / fPlayerDamage - 0.001f));
     constexpr float kPip = 4.0f;
     constexpr float kPipGap = 3.0f;
     const float fTotalW = static_cast<float>(iHitsLeft) * kPip + static_cast<float>(iHitsLeft - 1) * kPipGap;
@@ -154,6 +163,23 @@ void DrawEnemy(const Entity& tEnemy)
         DrawRectangleRec(Rectangle{fPipX, tRect.y - 8.0f, kPip, kPip}, kHpBarColor);
         fPipX += kPip + kPipGap;
     }
+}
+
+// 바닥 아이템: 아이템 색 마름모가 둥실 + 위에 이름
+void DrawDrop(const Entity& tDrop, const DropEntry& tEntry)
+{
+    const ItemDef& tDef = GetItemDef(tEntry.eItem);
+    const Color tColor = {static_cast<unsigned char>(tDef.tColor.iR), static_cast<unsigned char>(tDef.tColor.iG),
+                          static_cast<unsigned char>(tDef.tColor.iB), 255};
+    const Rect rcBody = GetBounds(tDrop.tBody);
+    const float fBob = tDrop.tBody.bGrounded ? std::sin(static_cast<float>(GetTime()) * 4.0f) * 3.0f - 4.0f : 0.0f;
+    const Vector2 vCenter = {rcBody.fX + rcBody.fW * 0.5f, rcBody.fY + rcBody.fH * 0.5f + fBob};
+    DrawPoly(vCenter, 4, rcBody.fW * 0.75f, 0.0f, tColor);
+    DrawPolyLines(vCenter, 4, rcBody.fW * 0.75f, 0.0f, WHITE);
+    const std::string strName(tDef.svName);
+    constexpr int kFontSize = 14;
+    DrawText(strName.c_str(), static_cast<int>(vCenter.x) - MeasureText(strName.c_str(), kFontSize) / 2,
+             static_cast<int>(vCenter.y - rcBody.fH - 14.0f), kFontSize, Fade(tColor, 0.9f));
 }
 
 void DrawParticles(const Particles& tParticles)
@@ -240,9 +266,12 @@ void Render::Draw(const FrameView& tView) const
         DrawDoor(tView.tRoomFlow);
         DrawHints(tView.tRoomFlow.GetRoomDef());
 
-        tView.tWorld.ForEachAlive([](Handle, const Entity& tEntity) {  // const 순회: Render는 World를 못 바꿈
+        tView.tWorld.ForEachAlive([&](Handle hEntity, const Entity& tEntity) {  // const 순회: Render는 World를 못 바꿈
             if (tEntity.eType == EntityType::Enemy)
-                DrawEnemy(tEntity);
+                DrawEnemy(tEntity, tView.tPlayerStats.fAttackDamage);
+            else if (tEntity.eType == EntityType::Drop)
+                if (const DropEntry* pEntry = tView.tItems.FindDrop(hEntity))
+                    DrawDrop(tEntity, *pEntry);
         });
         DrawGhosts(tView.tParticles);  // 플레이어보다 먼저 = 뒤에 깔림
         if (const Entity* pPlayer = tView.tWorld.Get(tView.hPlayer))

@@ -4,7 +4,7 @@
 #include "core/World_U.h"
 #include "data/EnemyDef_C.h"
 #include "data/PlayerDef_C.h"
-#include "systems/EnemyAI.h"
+#include "systems/EnemyAI_U.h"
 
 #include <doctest/doctest.h>
 

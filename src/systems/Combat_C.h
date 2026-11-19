@@ -6,6 +6,7 @@
 #include "core/Rect_C.h"
 #include "core/Vec2_C.h"
 #include "data/AttackDef_C.h"
+#include "data/PlayerDef_C.h"
 
 #include <array>
 #include <vector>
@@ -49,6 +50,7 @@ struct HitReport
     int iDir = 1;    // 공격자 -> 맞은 쪽 방향 (-1 / +1)
     bool bKilled = false;  // 이 타격으로 HP 0이 됨
     float fScale = 1.0f;   // 맞은 대상 크기 (작은 적 키 = 1.0). 연출이 파편 규모에 씀
+    bool bTargetIsPlayer = false;  // 맞은 쪽이 플레이어 (적 처치 보상은 false일 때만)
 };
 
 class Combat
@@ -60,8 +62,9 @@ public:
                       AttackState& tAttack, float fDt) const;
 
     // 모든 공격 단계 갱신 뒤 호출. Active 히트박스 겹침 -> HP 차감·넉백·깜빡임, HP 0인 적은 Destroy 예약.
-    // 맞은 것마다 vecOutReports에 추가 (호출자가 비우고 넘김)
-    void ResolveHits(World& tWorld, const SpatialQuery& tSpatial, std::vector<HitReport>& vecOutReports, float fDt);
+    // 맞은 것마다 vecOutReports에 추가 (호출자가 비우고 넘김). fPlayerDamage: 플레이어 최종 공격력 (Stats 결과)
+    void ResolveHits(World& tWorld, const SpatialQuery& tSpatial, std::vector<HitReport>& vecOutReports, float fDt,
+                     float fPlayerDamage = kPlayerDef.fAttackDamage);
 
 private:
     std::vector<Handle> m_vecQueryBuffer;  // QueryNearby 결과 재사용 (첫 몇 틱 뒤로는 할당 없음)

@@ -8,12 +8,14 @@
 #include "render/Render_C.h"
 #include "render/ViewCamera_C.h"
 #include "systems/PlayerMotor_C.h"
+#include "systems/Items_C.h"
 #include "systems/RoomFlow_C.h"
 
 #include "raylib.h"
 
 #include <algorithm>
 #include <cmath>
+#include <string>
 
 namespace
 {
@@ -40,16 +42,94 @@ void DrawBar(int iX, int iY, int iW, int iH, float fRatio, Color tFill)
     DrawRectangle(iX, iY, static_cast<int>(static_cast<float>(iW) * std::clamp(fRatio, 0.0f, 1.0f)), iH, tFill);
 }
 
-void DrawPlayerBars(const Entity& tPlayer)
+void DrawPlayerBars(const Entity& tPlayer, float fMaxHp)
 {
     constexpr int kBarW = 260;
-    DrawBar(kMargin, kTop, kBarW, 16, tPlayer.fHp / kPlayerDef.fMaxHp, kHpColor);
+    DrawBar(kMargin, kTop, kBarW, 16, tPlayer.fHp / fMaxHp, kHpColor);
+    DrawText(TextFormat("%d / %d", static_cast<int>(std::ceil(std::max(0.0f, tPlayer.fHp))), static_cast<int>(fMaxHp)),
+             kMargin + kBarW + 10, kTop, 16, kTitleColor);
 
     const DashState& tDash = tPlayer.tMotor.tDash;
     DrawBar(kMargin, kTop + 24, kBarW, 8, tDash.fGauge, tDash.bExhausted ? kGaugeExhaustedColor : kGaugeColor);
     // 대시 비용(50%) 눈금: 이 선을 넘어야 대시 가능
     const int iMarkX = kMargin + static_cast<int>(static_cast<float>(kBarW) * kPlayerDef.fDashCost);
     DrawRectangle(iMarkX - 1, kTop + 22, 2, 12, kMarkColor);
+}
+
+Color ToColor(const ItemColor& tColor, float fAlpha = 1.0f)
+{
+    return Fade(Color{static_cast<unsigned char>(tColor.iR), static_cast<unsigned char>(tColor.iG),
+                      static_cast<unsigned char>(tColor.iB), 255},
+                fAlpha);
+}
+
+const char* GetStatLabel(StatType eStat)
+{
+    switch (eStat)
+    {
+    case StatType::MaxHp:
+        return "MAX HP";
+    case StatType::AttackDamage:
+        return "ATK";
+    case StatType::MoveSpeed:
+        return "SPD";
+    case StatType::AttackRange:
+        return "RANGE";
+    }
+    return "";
+}
+
+// 효과 글자: 스택 1개당 modifier × 개수 (예: "SPD +24%")
+std::string FormatEffect(const ItemDef& tDef, int iStack)
+{
+    if (tDef.fHealOnPickup > 0.0f)
+        return TextFormat("HP +%d", static_cast<int>(tDef.fHealOnPickup));
+    std::string strOut;
+    for (const StatModifier& tMod : tDef.spPerStack)
+    {
+        const float fTotal = tMod.fValue * static_cast<float>(iStack);
+        if (!strOut.empty())
+            strOut += "  ";
+        strOut += tMod.eOp == ModOp::Add ? TextFormat("%s +%d", GetStatLabel(tMod.eStat), static_cast<int>(fTotal))
+                                         : TextFormat("%s +%d%%", GetStatLabel(tMod.eStat),
+                                                      static_cast<int>(std::lround(fTotal * 100.0f)));
+    }
+    return strOut;
+}
+
+// HP·게이지 바로 밑: 먹은 아이템 한 줄씩 (회복약은 인벤토리에 없음)
+void DrawInventory(const Items& tItems, int iY)
+{
+    constexpr int kFontSize = 16;
+    for (std::size_t i = 0; i < kItemCount; ++i)
+    {
+        const ItemId eItem = static_cast<ItemId>(i);
+        const int iStack = tItems.GetStack(eItem);
+        if (iStack <= 0)
+            continue;
+        const ItemDef& tDef = GetItemDef(eItem);
+        DrawRectangle(kMargin, iY + 3, 10, 10, ToColor(tDef.tColor));
+        const std::string strName(tDef.svName);
+        const std::string strLine = TextFormat("%s x%d   ", strName.c_str(), iStack) + FormatEffect(tDef, iStack);
+        DrawText(strLine.c_str(), kMargin + 16, iY, kFontSize, kTitleColor);
+        iY += kFontSize + 4;
+    }
+}
+
+// 주운 직후: 화면 위 가운데 "Feather  SPD +12%" (서서히 사라짐)
+void DrawPickupNotice(const PickupNotice& tNotice)
+{
+    if (tNotice.fTimer <= 0.0f)
+        return;
+    const ItemDef& tDef = GetItemDef(tNotice.eItem);
+    const float fAlpha = std::min(1.0f, tNotice.fTimer / 0.4f);
+    const std::string strName(tDef.svName);
+    const std::string strText = strName + "   " + FormatEffect(tDef, 1);
+    constexpr int kFontSize = 26;
+    const int iX = (kScreenWidth - MeasureText(strText.c_str(), kFontSize)) / 2;
+    const int iY = kFrameOffsetY + 110;
+    DrawRectangle(iX - 12, iY - 8, MeasureText(strText.c_str(), kFontSize) + 24, kFontSize + 16, Fade(kPanelColor, fAlpha));
+    DrawText(strText.c_str(), iX, iY, kFontSize, ToColor(tDef.tColor, fAlpha));
 }
 
 // 오른쪽 위: 방 진행 점 (지금 방 = 채움, 보스 = 마름모)
@@ -264,7 +344,9 @@ void DrawHud(const FrameView& tView)
     if (tRoomFlow.GetPhase() == GamePhase::Playing)
     {
         if (const Entity* pPlayer = tView.tWorld.Get(tView.hPlayer))
-            DrawPlayerBars(*pPlayer);
+            DrawPlayerBars(*pPlayer, tView.tPlayerStats.fMaxHp);
+        DrawInventory(tView.tItems, kTop + 44);
+        DrawPickupNotice(tView.tPickupNotice);
         const int iBelowMap = DrawMinimap(tView);  // 오른쪽 위: 미니맵 -> 방 진행 점 -> 남은 적 칸
         DrawRoomProgress(tRoomFlow, iBelowMap);
 

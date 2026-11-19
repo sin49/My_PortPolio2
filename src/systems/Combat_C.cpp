@@ -28,9 +28,9 @@ bool IsHostile(const Entity& tAttacker, const Entity& tTarget)
            (tAttacker.eType == EntityType::Enemy && tTarget.eType == EntityType::Player);
 }
 
-float GetAttackDamage(const Entity& tAttacker)  // TODO(Stats): 최종 공격력
+float GetAttackDamage(const Entity& tAttacker, float fPlayerDamage)
 {
-    return tAttacker.eType == EntityType::Player ? kPlayerDef.fAttackDamage : kChaserDef.fAttackDamage;
+    return tAttacker.eType == EntityType::Player ? fPlayerDamage : kChaserDef.fAttackDamage;
 }
 
 bool WasAlreadyHit(const AttackState& tAttack, Handle hTarget)
@@ -88,7 +88,7 @@ void Combat::UpdateAttack(const AttackIntent& tIntent, const Body& tBody, int iF
 }
 
 void Combat::ResolveHits(World& tWorld, const SpatialQuery& tSpatial, std::vector<HitReport>& vecOutReports,
-                         float fDt)
+                         float fDt, float fPlayerDamage)
 {
     tWorld.ForEachAlive([&](Handle, Entity& tEntity) {
         tEntity.tHit.fFlashTimer = std::max(0.0f, tEntity.tHit.fFlashTimer - fDt);
@@ -117,13 +117,14 @@ void Combat::ResolveHits(World& tWorld, const SpatialQuery& tSpatial, std::vecto
             ++tAttack.iAlreadyHitCount;
 
             const int iDir = tAttacker.tMotor.iFacing;
-            pTarget->fHp -= GetAttackDamage(tAttacker);
+            pTarget->fHp -= GetAttackDamage(tAttacker, fPlayerDamage);
             pTarget->tBody.vVel = {static_cast<float>(iDir) * kPlayerDef.fKnockbackSpeed, -kPlayerDef.fKnockbackUp};
             pTarget->tHit.fFlashTimer = kPlayerDef.fHitFlashTime;
             vecOutReports.push_back({.vPos = OverlapCenter(tAttack.rcHitbox, GetBounds(pTarget->tBody)),
                                      .iDir = iDir,
                                      .bKilled = pTarget->fHp <= 0.0f,
-                                     .fScale = pTarget->tBody.vSize.fY / kSmallEnemyHeight});
+                                     .fScale = pTarget->tBody.vSize.fY / kSmallEnemyHeight,
+                                     .bTargetIsPlayer = pTarget->eType == EntityType::Player});
 
             // 플레이어는 HP 0이어도 삭제 안 함 -> 게임 오버는 RoomFlow (결정 3)
             if (pTarget->fHp <= 0.0f && pTarget->eType != EntityType::Player)

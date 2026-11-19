@@ -158,3 +158,20 @@ Claude가 이어서 처리할 사항:
 6. 이후 사용자 실행 확인과 사용자 직접 커밋으로 이번 작업을 마무리한다. World와 게임 연결, SpatialQuery, Chaser, HP·피격 연결은 후속 작업으로 남아 있다.
 
 이번 Codex 작업은 이 문서 갱신과 첨부 정적 리뷰뿐이다. 소스 수정, 빌드·테스트, 커밋은 수행하지 않았다. 사용자가 돌아와 요청하기 전까지 후속 구현을 진행하지 않는다.
+
+### 2026-11-19 — Stats 사용자 구현 리뷰 / Claude 인계
+
+사용자가 Stats 작성을 마치고 점검·보고를 요청했다. 실제 확인 파일은 `src/systems/Stats.h`, **`build/Stats.cpp`**다. 후자는 아직 src에 없으므로 통상 CMake 자동 등록 조건을 충족하지 않는다.
+
+구현 내용: enum·스탯/보정 구조체, 정적 Calculate 선언, 참조 반환 GetField, Add/Mul 별도 합산, 기본값 복사 후 `(base + Add) * (1 + Mul)` 계산, 최종 0 하한 처리가 작성되어 있다. 사용자 요청으로 범위 for와 마지막 스탯 순회 블록의 C++ 예시를 Codex가 제공했으므로 구현은 사용자 주도이며 일부 AI 제공 코드가 포함됐다. 최종 작성자 표시는 해당 기여와 기존 규칙에 맞춰 정리한다.
+
+검증: 원본 소스는 수정하지 않고 `build/codex-stats-check`에 검증 전용 CMake 프로젝트를 생성했다. 기존 `TestMain_C.cpp`, `StatsTest_C.cpp`와 현재 build/Stats.cpp를 직접 연결하여 **MSVC C++20, /W4, /permissive-, /utf-8, Debug ASan**으로 빌드했다. **Stats 테스트 7개·assertion 13개 모두 통과.** 이는 독립 검증이며 일반 Main/전체 테스트 연결 완료를 뜻하지 않는다.
+
+발견 사항 / Claude 후속 작업:
+
+1. **GetField 반환 위치 오류:** 마지막 `return tBlock.fMaxHp;`가 switch 안에 남아 있다. 각 case는 return하므로 이 줄은 도달 불가(C4702), 미등록 enum 값이면 함수 끝까지 반환 없이 도달한다(C4715). 마지막 return을 switch 닫는 중괄호 뒤, 함수 안으로 옮겨야 한다. 테스트는 정상 enum만 사용하여 이 문제가 있어도 통과했다.
+2. **기본 공격 범위 불일치:** Stats.h의 `StatBlock::fAttackRange` 기본값이 0.0f다. 설계의 기본 범위 배율은 1.0f이므로 이를 복원하고, Calculate의 **tAdd와 tMul은 fAttackRange까지 명시적으로 0**으로 초기화해야 한다. 현재는 기본값을 0으로 둬 합계는 맞지만 기본 StatBlock의 범위가 0이 된다. 기존 테스트는 base의 범위를 1로 명시하므로 이 차이를 잡지 못한다.
+3. `build/Stats.cpp`를 `src/systems/Stats.cpp`로 이동하고 CMake 재구성하여 Stats 구현 포함 ON을 확인한다. include·명명·작성자 표기를 정리하고 경고 없는 Debug/ASan 빌드 및 전체 테스트를 다시 실행한다.
+4. 테스트 통과 후에도 아이템 보정 목록 생성과 최종 스탯의 Motor/Combat/최대 HP 연결은 별도 후속 작업이다. 현재 계산 함수 통과만으로 게임 연결 완료라고 보고하지 않는다.
+
+이번 Codex 작업은 조회, build 아래 검증 생성물 작성·빌드·테스트, 이 문서 갱신이다. 사용자 소스/테스트 원본은 수정하지 않았고 커밋하지 않았다.
