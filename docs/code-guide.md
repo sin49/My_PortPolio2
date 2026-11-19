@@ -119,16 +119,30 @@ ctest --test-dir build -C Debug --output-on-failure                             
 | `src/systems/PlayerMotor_C.h/.cpp` | 의도 -> 속도 | AI |
 | `src/systems/Physics_C.h/.cpp` | 중력·충돌 | AI |
 | `src/systems/Combat_C.h/.cpp` | 근접 공격 단계, 피격 판정(HP·넉백·깜빡임) | AI |
-| `src/systems/SpatialQuery_C.h/.cpp` | 주변 엔티티 검색 (MVP 전체 순회) | AI |
+| `src/systems/SpatialQuery_C.h/.cpp` | 주변 엔티티 검색: 해시(기본) / 전체 순회 전환(F3·`--full-scan`), 검색 비용 카운터 | AI |
+| `src/systems/SpatialHash_U.h/.cpp` | 격자 자료구조 (Clear·Insert·Query) | **사용자** (Codex 리뷰·중복 제거 예시 도움, Copilot 자동완성. 이름 정리만 AI) |
+| `src/core/Profiler_C.h/.cpp` | 구간별 시간 측정 (RAII `ProfileScope`, 틱당 평균), F1 패널 (measure.md) | AI |
+| `src/core/MeasureRecorder_C.h/.cpp`, `BenchScript_C.h/.cpp` | 3초 구간 평균 → CSV, `--bench` 자동 측정 시나리오 | AI |
+| `src/core/GameDebug_C.cpp` | Game의 측정·디버그 부분 (Game_C.cpp 300줄 넘지 않게 분리, 같은 클래스) | AI |
 | `src/render/Particles_C.h/.cpp` | 피격 파편 (연출 전용) | AI |
 | `src/systems/RoomFlow_C.h/.cpp` | 타이틀·방 진행·문·게임 오버·승리 | AI |
-| `src/render/ViewCamera_C.h`, `Hud_C.h/.cpp` | 카메라(플레이어 따라감), 화면 UI | AI |
+| `src/render/ViewCamera_C.h`, `Hud_C.h/.cpp` | 카메라(플레이어 따라감, 피격 흔들림), 화면 UI | AI |
+| `src/systems/LedgeGuard_C.h/.cpp` | 적이 발판 끝에서 안 떨어지게 이동 의도를 거름 (AI 다음, Motor 전) | AI |
+| `src/core/GamePresentation_C.cpp` | Game의 연출 부분: 카메라·효과음 (같은 클래스, 300줄 분리) | AI |
 | `src/data/Rooms_C.h`, `EntityFactory_C.h` | 방 4개 데이터, 종류별 초기 Entity | AI |
 | `src/systems/EnemyAI_U.h/.cpp` | 적 FSM (의도만 씀) | **사용자** |
 | `src/systems/Stats_U.h/.cpp` | 스탯 계산 (기본값 + modifier, 원본 불변) | **사용자** (범위 for·마지막 순회 예시는 Codex 도움) |
-| `src/systems/Projectile_C.h` | 투사체 상태 (`Faction`, `ProjectileState`) | AI |
+| `src/systems/Projectile_C.h/.cpp` | 투사체 상태(`Faction`, `ProjectileState`) + 발사 의도 → 순회 밖에서 생성, 직선 이동, 벽·수명 삭제. 풀 = World | AI |
+| `src/data/ProjectileDef_C.h` | 탄 1종 수치 (Shooter·보스 공용) | AI |
+| `src/core/EntitySide_C.h` | 진영 판정 `IsEnemySide`·`IsHittable`·`GetFaction` ("적인가?"는 전부 여기) | AI |
+| `src/systems/ShooterAI_C.h/.cpp` | Shooter FSM (사용자 EnemyAI 모양, `EnemyAIState` 재사용) | AI |
+| `src/systems/BossAI_C.h/.cpp` | 보스 FSM (조준 3연사 ↔ 8방향, HP 50% 이하 2페이즈, 의도만 씀) | AI |
+| `tests/SpatialHashTest_C.cpp`, `SpatialQueryTest_C.cpp` | Spatial Hash 스펙 테스트 (사용자 구현이 통과), 전체 순회 == 해시 결과 동등성 | AI |
 | `src/systems/Items_C.h/.cpp` | 아이템 드랍·획득·스택 → modifier 목록 (스탯 직접 수정 X) | AI |
 | `src/data/ItemDefs_C.h` | 아이템 테이블 5종, 플레이어 기본 스탯, 회복약 확률 | AI |
+| `src/systems/StressSpawner_C.h/.cpp`, `src/core/DebugIntent_C.h` | F2(1)·F4(100) 스트레스 소환 (작은 Chaser, 풀이 꽉 찰 때까지), F1 디버그 = 무적 | AI |
+| `src/audio/SfxSynth_C.h/.cpp` | 효과음 8개 파형 합성 (raylib 모름) | AI |
+| `src/audio/SoundAsset_C.h/.cpp`, `Audio_C.h/.cpp` | raylib Sound RAII 래퍼 + 오디오 장치 수명, 효과음 요청·재생 | AI |
 | `src/render/Render_C.h/.cpp` | 그리기 | AI |
 | `src/data/*_C.h` | 튜닝 값·방 데이터 | AI (값 조정은 사용자) |
 | `tests/*_C.cpp` | 테스트 (`WorldTest_C.cpp`는 World 스펙) | AI |

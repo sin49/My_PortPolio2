@@ -3,7 +3,9 @@
 #include "core/Handle_U.h"
 #include "core/Vec2_C.h"
 #include "data/ItemDefs_C.h"
+#include "systems/SpatialQuery_C.h"
 
+class FrameProfiler;
 class Items;
 class ViewCamera;
 class Particles;
@@ -24,6 +26,15 @@ struct DebugInfo
     int iStepsThisFrame = 0;
     long long llTotalTicks = 0;
     bool bShow = false;  // F1
+    bool bPlayerInvincible = false;  // F1 디버그 모드 = 무적 (HUD에 표시)
+    const FrameProfiler* pProfiler = nullptr;  // 구간별 시간 (읽기만)
+    SpatialQueryStats tSpatialStats;           // 지난 틱 검색 비용
+    const char* szSpatialMode = "";            // "full-scan" / "hash"
+    bool bRecording = false;                   // F5·벤치 측정 구간 진행 중
+    double dRecordElapsedSec = 0.0;
+    double dRecordDurationSec = 0.0;
+    int iBenchStep = -1;                       // --bench 진행 단계 (-1 = 벤치 아님)
+    int iBenchStepCount = 0;
 };
 
 // 아이템 획득 알림 (연출 상태, Game이 관리)
@@ -53,5 +64,6 @@ struct FrameView
 class Render
 {
 public:
-    void Draw(const FrameView& tView) const;
+    void Draw(const FrameView& tView) const;  // BeginDrawing + 그리기 명령 (측정 대상)
+    void Present() const;                     // EndDrawing (화면 교체 + vsync 대기 -> 측정 밖)
 };

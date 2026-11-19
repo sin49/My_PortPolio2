@@ -108,6 +108,9 @@ endfunction()
 add_library(GameLogic STATIC
     src/core/Tilemap_C.cpp
     src/core/World_U.cpp
+    src/core/Profiler_C.cpp
+    src/core/MeasureRecorder_C.cpp
+    src/core/BenchScript_C.cpp
     src/systems/PlayerMotor_C.cpp
     src/systems/Physics_C.cpp
     src/systems/Combat_C.cpp
@@ -115,7 +118,14 @@ add_library(GameLogic STATIC
     src/systems/RoomFlow_C.cpp
     src/systems/EnemyAI_U.cpp       # 사용자 작성
     src/systems/Stats_U.cpp         # 사용자 작성
+    src/systems/SpatialHash_U.cpp   # 사용자 작성 (11/19)
     src/systems/Items_C.cpp
+    src/systems/Projectile_C.cpp
+    src/systems/ShooterAI_C.cpp
+    src/systems/BossAI_C.cpp
+    src/systems/LedgeGuard_C.cpp
+    src/systems/StressSpawner_C.cpp
+    src/audio/SfxSynth_C.cpp        # 효과음 파형 합성 (raylib 모름)
 )
 target_include_directories(GameLogic PUBLIC ${CMAKE_SOURCE_DIR}/src)
 game_set_options(GameLogic)
@@ -126,10 +136,14 @@ game_set_options(GameLogic)
 add_executable(Main
     src/main_C.cpp
     src/core/Game_C.cpp
+    src/core/GameDebug_C.cpp        # Game의 측정·디버그 부분 (같은 클래스)
+    src/core/GamePresentation_C.cpp # Game의 연출 부분: 카메라·효과음 (같은 클래스)
     src/systems/Input_C.cpp
     src/render/Render_C.cpp
     src/render/Particles_C.cpp
     src/render/Hud_C.cpp
+    src/audio/SoundAsset_C.cpp      # raylib Sound RAII 래퍼
+    src/audio/Audio_C.cpp
 )
 target_link_libraries(Main PRIVATE GameLogic raylib)
 game_set_options(Main)
@@ -153,7 +167,16 @@ add_executable(tests
     tests/WorldTest_C.cpp       # World 스펙 테스트 (AI 작성, 사용자 구현이 통과)
     tests/EnemyAITest_C.cpp     # EnemyAI 스펙 테스트 (AI 작성, 사용자 구현이 통과)
     tests/StatsTest_C.cpp       # Stats 스펙 테스트 (AI 작성, 사용자 구현이 통과)
+    tests/SpatialHashTest_C.cpp # Spatial Hash 스펙 테스트 (AI 작성, 사용자 구현이 통과)
+    tests/SpatialQueryTest_C.cpp
     tests/ItemsTest_C.cpp
+    tests/ProjectileTest_C.cpp
+    tests/BossAITest_C.cpp
+    tests/RoomsDataTest_C.cpp
+    tests/HurtAndLedgeTest_C.cpp
+    tests/StressSpawnerTest_C.cpp
+    tests/SfxSynthTest_C.cpp
+    tests/ProfilerTest_C.cpp
 )
 target_link_libraries(tests PRIVATE GameLogic doctest::doctest)
 game_set_options(tests)

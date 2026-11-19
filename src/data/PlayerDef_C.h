@@ -43,6 +43,8 @@ struct PlayerDef
     float fKnockbackSpeed = 320.0f;     // 맞은 쪽 수평 속도 (Motor 감속으로 미끄러지며 멈춤)
     float fKnockbackUp = 220.0f;        // 살짝 뜸
     float fHitFlashTime = 0.10f;        // 맞은 쪽 흰색 깜빡임
+    float fHurtInvulnTime = 0.6f;       // 플레이어 피격 뒤 무적 (겹친 적 여러 마리에게 한꺼번에 맞지 않게, 11/19)
+    int iHitStopTicks = 4;              // 플레이어가 맞으면 게임을 이만큼 고정 틱 멈춤 (히트스톱, 4틱 ≈ 0.067초)
 };
 
 inline constexpr PlayerDef kPlayerDef{};

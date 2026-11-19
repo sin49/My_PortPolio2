@@ -1,5 +1,6 @@
 #include "systems/RoomFlow_C.h"
 
+#include "core/EntitySide_C.h"
 #include "core/World_U.h"
 #include "data/EntityFactory_C.h"
 #include "data/Rooms_C.h"
@@ -23,7 +24,7 @@ bool HasEnemiesLeft(const World& tWorld)
 {
     bool bAny = false;
     tWorld.ForEachAlive([&](Handle, const Entity& tEntity) {
-        if (tEntity.eType == EntityType::Enemy && tEntity.fHp > 0.0f)  // TODO: Boss, Shooter 추가 후 포함
+        if (IsEnemySide(tEntity.eType) && tEntity.fHp > 0.0f)
             bAny = true;
     });
     return bAny;
@@ -86,9 +87,8 @@ void RoomFlow::LoadRoom(World& tWorld, Handle hPlayer, int iRoomIndex)
         pPlayer->tMotor.iFacing = 1;
     }
 
-    const float fFloorTop = GetRoomFloorTop(tDef);
     for (const EnemySpawn& tSpawn : tDef.spEnemies)
-        tWorld.Create(MakeEnemyEntity(tSpawn, {tSpawn.fTileX * kTileSize, fFloorTop}));
+        tWorld.Create(MakeEnemyEntity(tSpawn, GetSpawnFeet(tDef, tSpawn)));  // 바닥 또는 발판 위
 
     m_eRoomState = tDef.spEnemies.empty() ? RoomState::Cleared : RoomState::Locked;
 }

@@ -102,6 +102,7 @@ src/
   core/      Game, World, Events, 공용 타입(Vec, Rect, EntityId)
   systems/   Input, Physics, Combat, EnemyAI, Stats, Items, RoomFlow
   render/    Render, HUD
+  audio/     효과음 합성·재생 (SoundAsset RAII)
   data/      아이템·적·방 정의 테이블
 assets/      rooms/*.txt (타일맵)
 docs/        GDD.md, design/, cpp-notes.md, devlog.md

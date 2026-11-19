@@ -15,15 +15,16 @@ enum class SpawnKind
 {
     Dummy,    // 튜토리얼 허수아비 (공격 안 함)
     Chaser,
-    Shooter,  // TODO: 사용자 Entity에 Shooter 추가 후. 지금은 Chaser로 대체 생성
-    Boss,     // TODO: 보스 구현 후. 지금은 Chaser로 대체 생성
+    Shooter,  // 거리 유지 + 1발 (ShooterAI_C)
+    Boss,     // BossAI_C (조준 3연사 <-> 8방향)
 };
 
 struct EnemySpawn
 {
     SpawnKind eKind = SpawnKind::Chaser;
-    float fTileX = 0.0f;  // 바닥 위 x (타일 단위). 높이는 바닥에 맞춰 생성
+    float fTileX = 0.0f;  // 발 가운데 x (타일 단위)
     EnemySize eSize = EnemySize::Small;  // 1·2·3대 (보스는 무시)
+    int iStandTileY = 0;  // 서 있을 발판의 타일 y (발판 윗면). 0 = 바닥 (11/19: 위쪽 발판에도 적 배치)
 };
 
 // 화면에 띄울 조작 안내 (월드 좌표). 키캡 + 그 아래 짧은 동작 설명
@@ -65,53 +66,67 @@ inline constexpr std::array<RoomHint, 6> kTutorialHints = {{
     {54.0f, 14.0f, "X", "attack"},
 }};
 
-// ---------- 방 1: 100 x 22, Chaser 4 ----------
-inline constexpr std::array<TileRect, 8> kRoom1Solids = {{
-    {12, 17, 6, 1},
-    {24, 14, 6, 1},
-    {36, 17, 8, 1},
-    {44, 18, 2, 3},   // 기둥
-    {50, 12, 6, 1},
-    {62, 16, 8, 1},
-    {78, 13, 6, 1},
-    {88, 17, 5, 1},
+// ---------- 방 1: 56 x 22 (11/19 2차: 72 -> 56, 위로 오르는 발판 계단 + 위쪽 적), Chaser 5 + Shooter 3 ----------
+// 발판 높이 차이는 3~4칸 (점프 최고 약 5칸). iStandTileY = 그 발판의 y
+inline constexpr std::array<TileRect, 13> kRoom1Solids = {{
+    {6, 18, 5, 1},
+    {13, 15, 4, 1},
+    {6, 12, 5, 1},
+    {13, 9, 4, 1},    // 왼쪽 계단 꼭대기
+    {20, 18, 6, 1},
+    {27, 18, 2, 3},   // 기둥
+    {30, 15, 5, 1},
+    {37, 12, 5, 1},
+    {30, 9, 4, 1},
+    {44, 15, 5, 1},
+    {49, 12, 4, 1},
+    {41, 8, 6, 1},    // 오른쪽 꼭대기
+    {50, 18, 3, 1},
 }};
-inline constexpr std::array<EnemySpawn, 7> kRoom1Enemies = {{
-    {SpawnKind::Chaser, 20.0f},
-    {SpawnKind::Chaser, 26.0f},
-    {SpawnKind::Chaser, 40.0f, EnemySize::Medium},
-    {SpawnKind::Chaser, 56.0f},
-    {SpawnKind::Chaser, 66.0f},
-    {SpawnKind::Chaser, 74.0f},
-    {SpawnKind::Chaser, 86.0f, EnemySize::Large},
+inline constexpr std::array<EnemySpawn, 8> kRoom1Enemies = {{
+    {SpawnKind::Chaser, 12.0f},
+    {SpawnKind::Chaser, 8.5f, EnemySize::Small, 12},
+    {SpawnKind::Shooter, 15.0f, EnemySize::Small, 9},
+    {SpawnKind::Chaser, 23.0f, EnemySize::Medium, 18},
+    {SpawnKind::Chaser, 32.5f, EnemySize::Small, 15},
+    {SpawnKind::Shooter, 39.5f, EnemySize::Small, 12},
+    {SpawnKind::Chaser, 44.0f, EnemySize::Large},
+    {SpawnKind::Shooter, 44.0f, EnemySize::Small, 8},
 }};
 
-// ---------- 방 2: 120 x 30 (세로로도 넓음), Chaser + Shooter ----------
-inline constexpr std::array<TileRect, 12> kRoom2Solids = {{
-    {8, 25, 8, 1},
+// ---------- 방 2: 64 x 26 (11/19 2차: 88 -> 64, 세로 탑 3개), Chaser 7 + Shooter 4 ----------
+inline constexpr std::array<TileRect, 18> kRoom2Solids = {{
+    {5, 22, 5, 1},    // 왼쪽 탑
+    {12, 19, 4, 1},
+    {5, 16, 5, 1},
+    {12, 13, 4, 1},
+    {5, 10, 5, 1},
+    {12, 7, 5, 1},
     {20, 22, 6, 1},
-    {30, 19, 6, 1},
-    {40, 16, 10, 1},
-    {54, 20, 6, 1},
-    {56, 25, 2, 4},   // 기둥
-    {64, 13, 8, 1},
-    {76, 17, 6, 1},
-    {86, 21, 8, 1},
-    {90, 12, 6, 1},
-    {100, 18, 6, 1},
-    {108, 24, 6, 1},
+    {27, 21, 2, 4},   // 기둥 (가운데 탑 디딤)
+    {31, 19, 5, 1},   // 가운데 탑
+    {38, 16, 5, 1},
+    {31, 13, 5, 1},
+    {38, 10, 5, 1},
+    {30, 6, 7, 1},
+    {46, 20, 5, 1},   // 오른쪽 탑
+    {53, 17, 4, 1},
+    {46, 13, 5, 1},
+    {53, 9, 4, 1},
+    {57, 22, 3, 1},
 }};
-inline constexpr std::array<EnemySpawn, 10> kRoom2Enemies = {{
-    {SpawnKind::Chaser, 18.0f},
-    {SpawnKind::Chaser, 24.0f},
-    {SpawnKind::Shooter, 44.0f},
-    {SpawnKind::Chaser, 50.0f, EnemySize::Medium},
-    {SpawnKind::Chaser, 62.0f},
-    {SpawnKind::Chaser, 70.0f},
-    {SpawnKind::Chaser, 80.0f, EnemySize::Large},
-    {SpawnKind::Shooter, 96.0f},
-    {SpawnKind::Chaser, 104.0f, EnemySize::Medium},
-    {SpawnKind::Chaser, 110.0f},
+inline constexpr std::array<EnemySpawn, 11> kRoom2Enemies = {{
+    {SpawnKind::Chaser, 16.0f},
+    {SpawnKind::Chaser, 7.5f, EnemySize::Small, 16},
+    {SpawnKind::Shooter, 14.0f, EnemySize::Small, 13},
+    {SpawnKind::Chaser, 14.5f, EnemySize::Medium, 7},
+    {SpawnKind::Chaser, 24.0f, EnemySize::Medium},
+    {SpawnKind::Shooter, 33.5f, EnemySize::Small, 13},
+    {SpawnKind::Chaser, 40.5f, EnemySize::Small, 10},
+    {SpawnKind::Shooter, 33.5f, EnemySize::Small, 6},
+    {SpawnKind::Chaser, 48.5f, EnemySize::Large, 13},
+    {SpawnKind::Shooter, 55.0f, EnemySize::Small, 9},
+    {SpawnKind::Chaser, 50.0f},
 }};
 
 // ---------- 보스 방: 50 x 22 ----------
@@ -126,9 +141,9 @@ inline constexpr std::array<EnemySpawn, 1> kBossEnemies = {{{SpawnKind::Boss, 34
 inline constexpr std::array<RoomDef, 4> kRooms = {{
     {.svName = "Tutorial", .iCols = 70, .iRows = 22, .spSolids = rooms_detail::kTutorialSolids,
      .spEnemies = rooms_detail::kTutorialEnemies, .spHints = rooms_detail::kTutorialHints},
-    {.svName = "Room 1", .iCols = 100, .iRows = 22, .spSolids = rooms_detail::kRoom1Solids,
+    {.svName = "Room 1", .iCols = 56, .iRows = 22, .spSolids = rooms_detail::kRoom1Solids,
      .spEnemies = rooms_detail::kRoom1Enemies},
-    {.svName = "Room 2", .iCols = 120, .iRows = 30, .spSolids = rooms_detail::kRoom2Solids,
+    {.svName = "Room 2", .iCols = 64, .iRows = 26, .spSolids = rooms_detail::kRoom2Solids,
      .spEnemies = rooms_detail::kRoom2Enemies},
     {.svName = "Boss", .iCols = 50, .iRows = 22, .spSolids = rooms_detail::kBossSolids,
      .spEnemies = rooms_detail::kBossEnemies, .bBossRoom = true},
@@ -138,6 +153,12 @@ inline constexpr std::array<RoomDef, 4> kRooms = {{
 inline constexpr float GetRoomFloorTop(const RoomDef& tRoom)
 {
     return static_cast<float>(tRoom.iRows - 1) * kTileSize;
+}
+// 적 발 위치 (px): 발판 윗면 또는 바닥
+inline constexpr Vec2 GetSpawnFeet(const RoomDef& tRoom, const EnemySpawn& tSpawn)
+{
+    const float fFeetY = tSpawn.iStandTileY > 0 ? static_cast<float>(tSpawn.iStandTileY) * kTileSize : GetRoomFloorTop(tRoom);
+    return Vec2{tSpawn.fTileX * kTileSize, fFeetY};
 }
 inline constexpr Vec2 GetRoomPlayerSpawn(const RoomDef& tRoom)
 {

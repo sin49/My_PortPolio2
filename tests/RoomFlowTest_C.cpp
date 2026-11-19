@@ -1,4 +1,5 @@
 // 방 진행 테스트 (docs/design/room-flow-ui.md 4장)
+#include "core/EntitySide_C.h"
 #include "core/FixedTimestep_C.h"
 #include "core/World_U.h"
 #include "data/PlayerDef_C.h"
@@ -17,7 +18,7 @@ int CountEnemies(const World& tWorld)
 {
     int iCount = 0;
     tWorld.ForEachAlive([&](Handle, const Entity& tEntity) {
-        if (tEntity.eType == EntityType::Enemy)
+        if (IsEnemySide(tEntity.eType))
             ++iCount;
     });
     return iCount;
@@ -26,7 +27,7 @@ int CountEnemies(const World& tWorld)
 void KillAllEnemies(World& tWorld)
 {
     tWorld.ForEachAlive([&](Handle hEntity, Entity& tEntity) {
-        if (tEntity.eType == EntityType::Enemy)
+        if (IsEnemySide(tEntity.eType))
             tWorld.Destroy(hEntity);
     });
     tWorld.FlushRemovals();

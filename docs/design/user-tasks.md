@@ -5,11 +5,11 @@
 
 | 순서 | 작업 | 문서 | 스펙 테스트 | 이걸 기다리는 AI 작업 |
 |---|---|---|---|---|
-| 1 (반) | **Entity 필드 추가** (아래). `tAI` 완료. **`Projectile_C.h` 생김 (11/19) → enum 3개·`tProjectile` 추가할 차례** | 이 문서 | — | 투사체·보스 |
+| 1 ✅ | **Entity 필드 추가** (아래). `tAI`·enum 3개·`tProjectile` 완료, `tBoss`는 11/19 사용자 "알아서" 결정으로 AI가 2줄 추가 | 이 문서 | — | 보스 (완료) |
 | 2 ✅ | **EnemyAI** (Chaser FSM, 11/19 완료) | `chaser.md` 3장 | `EnemyAITest_C.cpp` 9개 | Shooter·보스 AI (같은 모양으로) |
 | 3 ✅ | **Stats** (기본값 + modifier, 11/19 완료) | `stats.md` 2장 | `StatsTest_C.cpp` 7개 | 아이템 |
-| 4 | **Spatial Hash** (SpatialQuery 내부 교체) | 2·3 끝나면 AI가 의사코드 | 기존 + 새 테스트 | 스트레스 모드 |
-| 5 (선택) | **raylib 자원 RAII 래퍼** (아래 3장) | 사운드·스프라이트 작업 때 AI가 의사코드 | 컴파일 시간 검사(`static_assert`) | 사운드 |
+| 4 ✅ | **Spatial Hash** (격자 자료구조, 11/19 완료 → `SpatialHash_U`) | `spatial-hash.md` 2·3장 | `SpatialHashTest_C.cpp` 7개 | SpatialQuery 연결·측정 (AI, 완료) |
+| 5 → AI | ~~raylib 자원 RAII 래퍼~~ → 11/19 사용자 결정으로 **AI가 구현** (`audio/SoundAsset_C`, stress-sound.md 2장) | — | `static_assert` 4개 | — |
 
 ## 1. Entity_U.h 추가분 (EnemyAI 작업 때 같이)
 ```
@@ -20,6 +20,9 @@ enum class EntityType { Player, Enemy, Drop, Boss, Projectile, Shooter }   // Bo
 
 EnemyAIState tAI;                  // 적 AI 상태 (bPassive 포함, chaser.md 3-2)
 ProjectileState tProjectile;       // 투사체만 씀 (Projectile_C.h 생긴 뒤)
+
+#include "systems/BossAI_C.h"      // BossAIState (11/19 생성됨)
+BossAIState tBoss;                 // 보스만 씀 (shooter.md 결정 6-A)
 ```
 
 ## 2. 왜 이것들이 "노른자"인가 (포폴에 쓸 말)

@@ -1,6 +1,7 @@
 #include "systems/Input_C.h"
 
 #include "core/AttackIntent_C.h"
+#include "core/DebugIntent_C.h"
 #include "core/MenuIntent_C.h"
 #include "core/MoveIntent_C.h"
 
@@ -24,4 +25,18 @@ void Input::PollMenu(MenuIntent& tMenu) const
 {
     if (IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_KP_ENTER))
         tMenu.bConfirmPressed = true;
+}
+
+void Input::PollDebug(DebugIntent& tDebug) const
+{
+    if (IsKeyPressed(KEY_F1))
+        tDebug.bToggleDebugPressed = true;
+    if (IsKeyPressed(KEY_F2) || IsKeyPressedRepeat(KEY_F2))
+        ++tDebug.iSpawnEnemyPresses;
+    if (IsKeyPressed(KEY_F4))
+        ++tDebug.iSpawnBurstPresses;
+    if (IsKeyPressed(KEY_F3))
+        tDebug.bToggleSpatialPressed = true;
+    if (IsKeyPressed(KEY_F5))
+        tDebug.bRecordPressed = true;
 }

@@ -29,6 +29,25 @@ public:
 
     Vec2 GetTopLeft() const { return m_vTopLeft; }
 
+    // ---- 화면 흔들림 (11/19, 플레이어 피격감) ----
+    // "트라우마" 방식: 0~1 값을 더하고 시간이 지나면 줄어듦. 흔들림 크기 = 트라우마² (작은 충격은 약하게, 큰 충격은 확)
+    static constexpr float kMaxShakePx = 12.0f;   // 트라우마 1일 때 최대 흔들림
+    static constexpr float kShakeDecay = 2.2f;    // 초당 줄어드는 트라우마
+
+    void AddShake(float fTrauma) { m_fTrauma = std::min(1.0f, m_fTrauma + fTrauma); }
+    void UpdateShake(float fFrameDt)
+    {
+        m_fTrauma = std::max(0.0f, m_fTrauma - kShakeDecay * fFrameDt);
+        m_fShakeTime += fFrameDt;
+    }
+    // 그리기용 오프셋 (Render만 더함. 미니맵·컬링·화살표는 흔들리지 않는 GetTopLeft 사용)
+    // 랜덤 대신 주파수가 다른 sin 두 개 -> 상태 없이 매끄럽고, 같은 시간이면 같은 값
+    Vec2 GetShakeOffset() const
+    {
+        const float fAmount = m_fTrauma * m_fTrauma * kMaxShakePx;
+        return Vec2{fAmount * std::sin(m_fShakeTime * 53.0f), fAmount * std::sin(m_fShakeTime * 71.0f + 1.3f)};
+    }
+
 private:
     // 방 밖을 보여 주지 않게. 방이 화면보다 작으면 가운데 정렬
     static Vec2 Clamp(Vec2 vPos, Vec2 vView, Vec2 vRoom)
@@ -42,4 +61,6 @@ private:
     }
 
     Vec2 m_vTopLeft = {};
+    float m_fTrauma = 0.0f;
+    float m_fShakeTime = 0.0f;
 };

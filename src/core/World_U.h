@@ -12,7 +12,7 @@
 class World
 {
 public:
-    static constexpr std::uint32_t kCapacity = 256;
+    static constexpr std::uint32_t kCapacity = 9999;  // 11/19 사용자 결정: 256 -> 9999 (스트레스 테스트 극한. 평소 게임은 수십 개)
 
     World();
 

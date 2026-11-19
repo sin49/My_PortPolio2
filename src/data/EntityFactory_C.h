@@ -16,9 +16,33 @@ inline Entity MakePlayerEntity(Vec2 vPos)
 }
 
 // vFeet: 발 위치 (가운데 아래). 방 데이터는 바닥 기준이라 이게 편함
+inline Entity MakeShooterEntity(Vec2 vFeet)
+{
+    Entity tShooter;
+    tShooter.eType = EntityType::Shooter;
+    tShooter.tBody = {.vPos = {vFeet.fX - kShooterDef.vSize.fX * 0.5f, vFeet.fY - kShooterDef.vSize.fY}, .vSize = kShooterDef.vSize};
+    tShooter.fHp = kShooterDef.fMaxHp;
+    tShooter.tMotor.iFacing = -1;
+    return tShooter;
+}
+
+inline Entity MakeBossEntity(Vec2 vFeet)
+{
+    Entity tBoss;
+    tBoss.eType = EntityType::Boss;
+    tBoss.tBody = {.vPos = {vFeet.fX - kBossDef.vSize.fX * 0.5f, vFeet.fY - kBossDef.vSize.fY}, .vSize = kBossDef.vSize};
+    tBoss.fHp = kBossDef.fMaxHp;
+    tBoss.tMotor.iFacing = -1;
+    return tBoss;
+}
+
 inline Entity MakeEnemyEntity(const EnemySpawn& tSpawn, Vec2 vFeet)
 {
-    // TODO: Shooter·Boss 타입이 생기면 종류별 Def로. 지금은 전부 Chaser (크기만 다름)
+    if (tSpawn.eKind == SpawnKind::Shooter)
+        return MakeShooterEntity(vFeet);  // 크기·HP 고정 (eSize 무시)
+    if (tSpawn.eKind == SpawnKind::Boss)
+        return MakeBossEntity(vFeet);
+    // 나머지는 Chaser (크기만 다름)
     // 튜토리얼 허수아비: AI가 건드리지 않음 (EnemyAI의 bPassive 검사)
     const EnemySizeDef& tSizeDef = GetEnemySizeDef(tSpawn.eSize);
     const Vec2 vSize = tSizeDef.vSize;

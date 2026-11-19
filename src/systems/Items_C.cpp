@@ -17,6 +17,8 @@ void Items::Reset()
 
 Handle Items::SpawnDrop(World& tWorld, Vec2 vCenter, ItemId eItem)
 {
+    if (tWorld.GetAliveCount() >= static_cast<int>(World::kCapacity))
+        return Handle{};  // 풀이 꽉 참 (스트레스 테스트) -> 드랍 생략
     Entity tDrop;
     tDrop.eType = EntityType::Drop;
     tDrop.tBody = {.vPos = {vCenter.fX - kDropDef.vSize.fX * 0.5f, vCenter.fY - kDropDef.vSize.fY * 0.5f},

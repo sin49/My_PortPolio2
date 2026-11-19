@@ -1,5 +1,6 @@
 #include "render/Hud_C.h"
 
+#include "core/EntitySide_C.h"
 #include "core/Tilemap_C.h"
 #include "core/World_U.h"
 #include "data/EnemyDef_C.h"
@@ -157,17 +158,32 @@ int CountEnemiesLeft(const World& tWorld)
 {
     int iCount = 0;
     tWorld.ForEachAlive([&](Handle, const Entity& tEntity) {
-        if (tEntity.eType == EntityType::Enemy && tEntity.fHp > 0.0f)  // TODO: Shooter·Boss 추가 후 포함
+        if (IsEnemySide(tEntity.eType) && tEntity.fHp > 0.0f)
             ++iCount;
     });
     return iCount;
 }
 
 // 오른쪽 위 진행 점 아래: 남은 적 = 빨간 칸, 처치한 적 = 빈 칸 (글자 없음)
+// 남은 적이 kEnemyCellLimit보다 많으면 (F2 스트레스 소환) 빨간 박스 1개 + "x 숫자"
+constexpr int kEnemyCellLimit = 10;
+
 void DrawEnemyCounter(int iLeft, int iTotal, int iY)
 {
     constexpr int kCell = 8;
     constexpr int kGap = 3;
+    if (iLeft > kEnemyCellLimit)
+    {
+        constexpr int kBox = 12;
+        constexpr int kFontSize = 18;
+        const char* szCount = TextFormat("x %d", iLeft);
+        const int iTextW = MeasureText(szCount, kFontSize);
+        const int iX = kScreenWidth - kMargin - iTextW - 6 - kBox;
+        DrawRectangle(iX, iY - 1, kBox, kBox, kHpColor);
+        DrawText(szCount, iX + kBox + 6, iY - 4, kFontSize, kTitleColor);
+        return;
+    }
+    iTotal = std::max(iTotal, iLeft);  // 소환으로 처음 수보다 많아졌으면 그만큼 칸을 늘림
     const int iW = iTotal * kCell + (iTotal - 1) * kGap;
     int iX = kScreenWidth - kMargin - iW;
     for (int i = 0; i < iTotal; ++i)
@@ -180,6 +196,28 @@ void DrawEnemyCounter(int iLeft, int iTotal, int iY)
     }
 }
 
+// 스트레스 테스트 상태 (적 숫자 아래, 오른쪽 정렬): 디버그 모드 무적, World 풀이 꽉 참
+void DrawStressStatus(const FrameView& tView, int iY)
+{
+    constexpr int kFontSize = 16;
+    auto fnLine = [&](const char* szText, Color tColor) {
+        DrawText(szText, kScreenWidth - kMargin - MeasureText(szText, kFontSize), iY, kFontSize, tColor);
+        iY += kFontSize + 4;
+    };
+    const DebugInfo& tDebug = tView.tDebug;
+    if (tDebug.iBenchStep >= 0)
+        fnLine(TextFormat("BENCH %d / %d", std::min(tDebug.iBenchStep + 1, tDebug.iBenchStepCount),
+                          tDebug.iBenchStepCount),
+               kArrowColor);
+    if (tDebug.bRecording)
+        fnLine(TextFormat("REC %.1f / %.1fs", tDebug.dRecordElapsedSec, tDebug.dRecordDurationSec), kHpColor);
+    if (tDebug.bPlayerInvincible)
+        fnLine("DEBUG: INVINCIBLE (F1)", kPlayerDotColor);
+    const int iAlive = tView.tWorld.GetAliveCount();
+    if (iAlive >= static_cast<int>(World::kCapacity))
+        fnLine(TextFormat("WORLD POOL FULL %d / %d", iAlive, static_cast<int>(World::kCapacity)), kHpColor);
+}
+
 // 남은 적이 처음의 1/4 이하가 되면: 화면 밖 적마다 화면 가장자리에 그쪽을 가리키는 화살표
 void DrawOffscreenEnemyArrows(const World& tWorld, Vec2 vCameraTopLeft)
 {
@@ -188,7 +226,7 @@ void DrawOffscreenEnemyArrows(const World& tWorld, Vec2 vCameraTopLeft)
     const float fBlink = 0.6f + 0.4f * std::sin(static_cast<float>(GetTime()) * 5.0f);
 
     tWorld.ForEachAlive([&](Handle, const Entity& tEntity) {
-        if (tEntity.eType != EntityType::Enemy || tEntity.fHp <= 0.0f)
+        if (!IsEnemySide(tEntity.eType) || tEntity.fHp <= 0.0f)
             return;
         const Body& tBody = tEntity.tBody;
         const Vector2 vScreen = {tBody.vPos.fX + tBody.vSize.fX * 0.5f - vCameraTopLeft.fX,
@@ -253,17 +291,19 @@ int DrawMinimap(const FrameView& tView)
                          bOpen ? kArrowColor : kHpColor);
     }
 
-    auto fnDot = [&](const Body& tBody, float fRadius, Color tColor) {
-        const Vector2 vCenter = {fX0 + (tBody.vPos.fX + tBody.vSize.fX * 0.5f) * fPxToMap,
-                                 fY0 + (tBody.vPos.fY + tBody.vSize.fY * 0.5f) * fPxToMap};
-        DrawCircleV(vCenter, fRadius, tColor);
+    auto fnCenter = [&](const Body& tBody) {
+        return Vector2{fX0 + (tBody.vPos.fX + tBody.vSize.fX * 0.5f) * fPxToMap,
+                       fY0 + (tBody.vPos.fY + tBody.vSize.fY * 0.5f) * fPxToMap};
     };
+    // 적 점 = 3x3 사각형 (11/19 측정: 원은 raylib에서 삼각형 36개 -> 6,000마리면 21만 개. 사각형은 2개)
     tView.tWorld.ForEachAlive([&](Handle, const Entity& tEntity) {
-        if (tEntity.eType == EntityType::Enemy && tEntity.fHp > 0.0f)
-            fnDot(tEntity.tBody, 2.0f, kHpColor);
+        if (!IsEnemySide(tEntity.eType) || tEntity.fHp <= 0.0f)
+            return;
+        const Vector2 vCenter = fnCenter(tEntity.tBody);
+        DrawRectangleRec(Rectangle{vCenter.x - 1.5f, vCenter.y - 1.5f, 3.0f, 3.0f}, kHpColor);
     });
     if (const Entity* pPlayer = tView.tWorld.Get(tView.hPlayer))
-        fnDot(pPlayer->tBody, 3.0f, kPlayerDotColor);
+        DrawCircleV(fnCenter(pPlayer->tBody), 3.0f, kPlayerDotColor);  // 1개뿐이라 원 유지
 
     const Vec2 vCam = tView.tCamera.GetTopLeft();
     DrawRectangleLinesEx(Rectangle{fX0 + vCam.fX * fPxToMap, fY0 + vCam.fY * fPxToMap, kViewSize.fX * fPxToMap,
@@ -272,16 +312,27 @@ int DrawMinimap(const FrameView& tView)
     return static_cast<int>(fY0 + fH) + 8;
 }
 
-// 보스 방: 화면 위 가운데 큰 HP 바 (TODO: Boss 타입 생기면 보스만. 지금은 방 안 적 HP 합)
+// 보스 방: 화면 위 가운데 큰 HP 바 (보스 HP / kBossDef.fMaxHp) + 2페이즈 눈금
 void DrawBossBar(const World& tWorld)
 {
     float fHp = 0.0f;
+    bool bFound = false;
     tWorld.ForEachAlive([&](Handle, const Entity& tEntity) {
-        if (tEntity.eType == EntityType::Enemy)
-            fHp += std::max(0.0f, tEntity.fHp);
+        if (tEntity.eType != EntityType::Boss)
+            return;
+        fHp += std::max(0.0f, tEntity.fHp);
+        bFound = true;
     });
+    if (!bFound)
+        return;
     constexpr int kBarW = 520;
-    DrawBar((kScreenWidth - kBarW) / 2, kTop + 40, kBarW, 14, fHp / kChaserDef.fMaxHp, kBossColor);
+    const int iX = (kScreenWidth - kBarW) / 2;
+    const int iY = kTop + 40;
+    DrawBar(iX, iY, kBarW, 14, fHp / kBossDef.fMaxHp, kBossColor);
+    // 2페이즈 경계 눈금 (HP 50%) + 이름
+    const int iMarkX = iX + static_cast<int>(static_cast<float>(kBarW) * kBossDef.fPhase2HpRatio);
+    DrawRectangle(iMarkX - 1, iY - 2, 2, 18, kMarkColor);
+    DrawText("BOSS", iX, iY - 22, 18, kTitleColor);
 }
 
 // 문 열림: 화면 오른쪽 가운데에서 깜빡이는 화살표
@@ -313,7 +364,7 @@ void DrawPhaseScreen(const RoomFlow& tRoomFlow)
         constexpr const char* kControls[] = {
             "<- ->  move        Z  jump (hold = higher)        X  attack",
             "SHIFT  tap = dash (invincible)   /   hold = run (jump higher)",
-            "F1  debug        ESC  quit",
+            "F1 debug   F2 spawn 1   F4 spawn 100   F3 full-scan/hash   F5 record   ESC quit",
         };
         int iY = iMidY - 20;
         for (const char* szLine : kControls)
@@ -352,8 +403,10 @@ void DrawHud(const FrameView& tView)
 
         const int iTotal = tRoomFlow.GetRoomEnemyTotal();
         const int iLeft = CountEnemiesLeft(tView.tWorld);
-        if (iTotal > 0 && !tRoomFlow.GetRoomDef().bBossRoom)
+        const bool bManyEnemies = iLeft > kEnemyCellLimit;  // 보스 방도 소환으로 많아지면 표시
+        if ((iTotal > 0 && !tRoomFlow.GetRoomDef().bBossRoom) || bManyEnemies)
             DrawEnemyCounter(iLeft, iTotal, iBelowMap + 28);
+        DrawStressStatus(tView, iBelowMap + 52);
         if (iLeft > 0 && iLeft * 4 <= iTotal)  // 처음의 1/4 이하로 남으면 위치 안내
             DrawOffscreenEnemyArrows(tView.tWorld, tView.tCamera.GetTopLeft());
 

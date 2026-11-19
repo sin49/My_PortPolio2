@@ -48,3 +48,42 @@ inline constexpr const EnemySizeDef& GetEnemySizeDef(EnemySize eSize)
 {
     return kEnemySizes[static_cast<int>(eSize)];
 }
+
+// Shooter: 거리를 유지하며 플레이어 쪽으로 1발 (shooter.md). 크기·HP 고정 (중간, 2대)
+struct ShooterDef
+{
+    Vec2 vSize = {28.0f, 38.0f};
+    float fMaxHp = 20.0f;
+    float fMoveSpeed = 110.0f;
+
+    float fDetectRange = 560.0f;  // Idle -> Chase (가로·세로 둘 다)
+    float fLoseRange = 760.0f;    // 가로가 이보다 멀면 Chase -> Idle
+    float fPreferMin = 220.0f;    // 가로 거리가 이보다 가까우면 물러남
+    float fPreferMax = 380.0f;    // 이보다 멀면 다가감. 이 안이면 Windup (쏠 준비)
+    float fFireRangeY = 260.0f;   // 세로 차이가 이 안일 때만 쏨 (너무 위·아래 층이면 안 쏨)
+    float fWindupTime = 0.70f;    // 발사 예고 (깜빡임). 11/19 사용자: 덜 자주 쏘게 0.5 -> 0.7
+    float fRecoverTime = 2.40f;   // 쏜 뒤 쉬는 시간 (이동은 함). 11/19 사용자: 1.4 -> 2.4
+};
+
+inline constexpr ShooterDef kShooterDef{};
+
+// 보스 (boss-projectile.md): 조준 3연사 <-> 8방향 원형탄 번갈아, HP 절반 아래면 쉬는 시간이 짧아짐 (2페이즈)
+struct BossDef
+{
+    Vec2 vSize = {64.0f, 72.0f};
+    float fMaxHp = 100.0f;      // 플레이어 기본 공격 10번 (11/19 사용자: 포폴용이라 300 -> 100)
+    float fMoveSpeed = 60.0f;   // Recover 때만 천천히 다가옴
+    float fDetectRange = 900.0f;  // 가로 거리가 이 안이면 Idle -> 첫 패턴 (방 입장 직후 숨 돌릴 틈)
+
+    // 11/19 사용자: "충분히 어렵다" -> 공격 빈도 낮춤 (예고 길게, 쉼 길게)
+    float fAimedWindupTime = 0.7f;
+    int iAimedShots = 3;
+    float fAimedSpreadDeg = 24.0f;  // 가운데 기준 -12°, 0°, +12°
+    float fRingWindupTime = 0.9f;
+    int iRingShots = 8;             // 45°마다
+    float fRecoverTime = 2.0f;
+    float fRecoverTimePhase2 = 1.3f;
+    float fPhase2HpRatio = 0.5f;    // HP가 이 비율 이하면 2페이즈
+};
+
+inline constexpr BossDef kBossDef{};
